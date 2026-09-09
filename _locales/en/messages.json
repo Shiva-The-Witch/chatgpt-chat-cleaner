@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "ChatGPT Chat Cleaner & Organizer"
+  },
+  "extensionShortName": {
+    "message": "Chat Cleaner"
+  },
+  "extensionDescription": {
+    "message": "Organize, filter, export, and selectively remove ChatGPT conversations."
+  }
+}
