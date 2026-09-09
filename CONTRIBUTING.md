@@ -38,3 +38,7 @@ Never include authentication tokens, cookies, or private conversation content in
 ## Licensing note
 
 Contributions become part of a source-available project distributed under the repository's current license. If broader contributor licensing terms become necessary for future commercial licensing or distribution, the contribution process may be updated before accepting such changes.
+
+## Localization checks
+
+When changing interface copy or layout, verify both English and Persian modes, including LTR/RTL behavior and confirmation dialogs.

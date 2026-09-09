@@ -5,7 +5,7 @@ A lightweight browser extension for organizing, filtering, marking, exporting, a
 **Built and maintained by [Shiva Dehghan](https://github.com/Shiva-The-Witch).**
 
 > **Status:** Active development  
-> **Current version:** 1.2.1  
+> **Current version:** 1.3.0  
 > **Platform:** Chromium-based browsers / Manifest V3
 
 ## Features
@@ -15,6 +15,7 @@ A lightweight browser extension for organizing, filtering, marking, exporting, a
 - Multi-select conversations
 - Mark conversations as articles
 - Create and manage local projects
+- Discover and sync Projects already defined in ChatGPT
 - Assign one or multiple conversations to projects
 - Filter by article status or project
 - Detect generic conversation titles
@@ -23,6 +24,7 @@ A lightweight browser extension for organizing, filtering, marking, exporting, a
 - Import a previous JSON selection
 - Selectively delete conversations with an explicit confirmation step
 - Light and dark themes with a ChatGPT-inspired neutral interface
+- Bilingual interface: English and Persian (RTL/LTR) with a persistent language switch
 - No external runtime dependencies or build step
 
 ## Installation
@@ -69,6 +71,9 @@ Bulk deletion is destructive and cannot be undone. The extension requires explic
 ├── popup.js
 ├── icons/
 │   └── icon.png
+├── _locales/
+│   ├── en/messages.json
+│   └── fa/messages.json
 ├── README.md
 ├── CHANGELOG.md
 ├── PRIVACY.md

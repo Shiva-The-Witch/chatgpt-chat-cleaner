@@ -1,6 +1,34 @@
 # Changelog
 
+## 1.3.2 - 2026-09-06
+
+- Fixed ChatGPT project discovery by loading native Projects directly from ChatGPT's project sidebar endpoint instead of relying only on rendered sidebar links.
+- Added cursor-based pagination so all native Projects can be discovered, not only the currently visible sidebar entries.
+- Fixed the missing **Sync ChatGPT projects** button in the Project Manager.
+- Project Manager now refreshes native ChatGPT Projects automatically whenever it opens.
+- Kept DOM discovery as a fallback if the internal project endpoint is temporarily unavailable.
+
+## 1.3.1 - 2026-09-06
+
+### Fixed
+
+- ChatGPT native projects shown in the sidebar can now be synchronized into the organizer project list.
+- Native ChatGPT projects are marked as read-only in the extension project manager to avoid accidentally renaming or deleting a project only inside local extension storage.
+
 All notable changes to this project are documented here.
+
+## 1.3.0 - 2026-09-06
+
+### Added
+- Added a bilingual English/Persian interface for the main cleaner panel.
+- Added a language switch with persistent language preference.
+- Added automatic RTL/LTR layout switching based on the selected language.
+- Added localized number and date formatting for English and Persian.
+- Added bilingual popup copy and localized launch errors.
+- Added Chrome locale metadata for English and Persian.
+
+### Changed
+- Kept public project documentation in English while making the extension UI bilingual.
 
 ## 1.2.1 - 2026-09-06
 
