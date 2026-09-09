@@ -11,6 +11,8 @@
   const STORAGE_KEY = "chat-cleaner-organizer-v1";
   const THEME_KEY = "chat-cleaner-theme-v1";
   const LANGUAGE_KEY = "chat-cleaner-language-v1";
+  const MOVE_QUEUE_KEY = "chat-cleaner-native-move-queue-v1";
+  const MOVE_RESULT_KEY = "chat-cleaner-last-move-result-v1";
 
   const TRANSLATIONS = {
     en: {
@@ -106,7 +108,35 @@
       projectSyncFailed: "Could not load ChatGPT projects. Refresh ChatGPT and try again.",
       chatgptProject: "ChatGPT",
       save: "Save",
-      conversationsAssigned: "{count} conversations assigned to the project.",
+      smartSuggestions: "Smart suggestions",
+      suggestionsTitle: "Project suggestions",
+      suggestionsIntro: "Suggestions are calculated locally from your project names, existing project chats, and a short context sample from unorganized chats. Review the matches before moving anything.",
+      readingSuggestionContext: "Reading conversation context for suggestions…",
+      noSuggestions: "No useful project matches were found yet. Add a few conversations to your projects and scan again.",
+      suggestedProject: "Suggested project",
+      confidence: "Confidence",
+      confidenceHigh: "High",
+      confidenceMedium: "Medium",
+      confidenceLow: "Low",
+      moveApproved: "Move approved",
+      projectChats: "{count} chats",
+      viewProjectChats: "View chats",
+      noProjectChats: "No chats were found in this project.",
+      projectChatsLoading: "Loading chats from {project}…",
+      projectChatsLoaded: "{count} project chats loaded.",
+      creatingProject: "Creating project in ChatGPT…",
+      projectCreated: "Project “{name}” was created in ChatGPT.",
+      projectCreateFailed: "Could not create the project in ChatGPT.",
+      nativeProjectsOnly: "Choose a ChatGPT project to move conversations.",
+      moveQueued: "{count} conversations queued to move.",
+      moveResult: "{moved} moved{failed}.",
+      moveFailuresSuffix: "; {count} failed",
+      moveToProject: "Move to project",
+      movingConversation: "Moving: {title}",
+      alreadyInProject: "Already in this project",
+      cannotRemoveNativeProject: "Removing a conversation from a ChatGPT project is not supported yet. Choose another project instead.",
+      legacyLocal: "Local (legacy)",
+      conversationsAssigned: "{count} conversations queued for the project.",
       authError: "Your ChatGPT session could not be detected. Refresh the page and try again.",
       rateLimitError: "ChatGPT is rate-limiting requests. Try again later.",
       interfaceChangedError: "The ChatGPT web interface appears to have changed. The operation was stopped.",
@@ -206,7 +236,35 @@
       projectSyncFailed: "پروژه‌های ChatGPT خوانده نشد. صفحه ChatGPT را تازه کن و دوباره امتحان کن.",
       chatgptProject: "ChatGPT",
       save: "ذخیره",
-      conversationsAssigned: "{count} مورد ثبت شد.",
+      smartSuggestions: "پیشنهاد پروژه",
+      suggestionsTitle: "پیشنهاد برای پروژه‌ها",
+      suggestionsIntro: "پیشنهادها روی همین مرورگر و با استفاده از نام پروژه‌ها، چت‌های فعلی هر پروژه و بخش کوتاهی از محتوای چت‌های مرتب‌نشده ساخته می‌شوند. قبل از انتقال، نتیجه‌ها را بررسی کن.",
+      readingSuggestionContext: "در حال خواندن بخش کوتاهی از چت‌ها برای پیشنهاد بهتر…",
+      noSuggestions: "فعلاً پیشنهاد قابل‌اعتمادی پیدا نشد. چند چت را داخل پروژه‌ها قرار بده و دوباره اسکن کن.",
+      suggestedProject: "پروژه پیشنهادی",
+      confidence: "اطمینان",
+      confidenceHigh: "زیاد",
+      confidenceMedium: "متوسط",
+      confidenceLow: "کم",
+      moveApproved: "انتقال تأییدشده‌ها",
+      projectChats: "{count} چت",
+      viewProjectChats: "دیدن چت‌ها",
+      noProjectChats: "چتی داخل این پروژه پیدا نشد.",
+      projectChatsLoading: "در حال خواندن چت‌های {project}…",
+      projectChatsLoaded: "{count} چت از پروژه‌ها خوانده شد.",
+      creatingProject: "در حال ساخت پروژه در ChatGPT…",
+      projectCreated: "پروژه «{name}» داخل ChatGPT ساخته شد.",
+      projectCreateFailed: "ساخت پروژه در ChatGPT انجام نشد.",
+      nativeProjectsOnly: "یک پروژه واقعی ChatGPT برای انتقال انتخاب کن.",
+      moveQueued: "{count} چت برای انتقال در صف قرار گرفت.",
+      moveResult: "{moved} چت منتقل شد{failed}.",
+      moveFailuresSuffix: "؛ {count} مورد ناموفق",
+      moveToProject: "انتقال به پروژه",
+      movingConversation: "در حال انتقال: {title}",
+      alreadyInProject: "این چت همین حالا داخل این پروژه است",
+      cannotRemoveNativeProject: "خارج‌کردن چت از پروژه ChatGPT هنوز پشتیبانی نمی‌شود. می‌توانی آن را به پروژه دیگری منتقل کنی.",
+      legacyLocal: "محلی (قدیمی)",
+      conversationsAssigned: "{count} چت برای انتقال ثبت شد.",
       authError: "ورود شناسایی نشد. صفحه را تازه کن.",
       rateLimitError: "محدودیت درخواست فعال است. بعداً دوباره امتحان کن.",
       interfaceChangedError: "ساختار ChatGPT تغییر کرده؛ عملیات متوقف شد.",
@@ -216,6 +274,7 @@
   };
   const state = {
     conversations: [],
+    nativeProjectByConversation: new Map(),
     selected: new Set(),
     authHeaders: null,
     scanning: false,
@@ -459,6 +518,7 @@
             <div class="action-group">
               <button class="scan primary" type="button" data-i18n="scan">Scan</button>
               <button class="manage-projects" type="button" data-i18n="projects">Projects</button>
+              <button class="smart-suggestions" type="button" disabled data-i18n="smartSuggestions">Smart suggestions</button>
               <button class="select-filtered" type="button" disabled data-i18n="selectFiltered">Select filtered</button>
               <button class="select-generic" type="button" disabled data-i18n="genericTitles">Generic titles</button>
               <button class="select-duplicates" type="button" disabled data-i18n="olderDuplicates">Older duplicates</button>
@@ -488,7 +548,7 @@
           <select class="bulk-project" data-i18n-aria-label="projectForSelected" aria-label="Project for selected conversations" disabled>
             <option value="">Move selected to…</option>
           </select>
-          <button class="bulk-assign" type="button" disabled data-i18n="assignProject">Assign project</button>
+          <button class="bulk-assign" type="button" disabled data-i18n="moveToProject">Move to project</button>
           <button class="export-selection" type="button" disabled data-i18n="exportSelection">Export selection</button>
           <button class="delete danger" type="button" disabled data-i18n="deleteSelected">Delete selected</button>
         </footer>
@@ -508,6 +568,7 @@
     articleFilter: shadow.querySelector(".article-filter"),
     projectFilter: shadow.querySelector(".project-filter"),
     manageProjects: shadow.querySelector(".manage-projects"),
+    smartSuggestions: shadow.querySelector(".smart-suggestions"),
     selectFiltered: shadow.querySelector(".select-filtered"),
     selectGeneric: shadow.querySelector(".select-generic"),
     selectDuplicates: shadow.querySelector(".select-duplicates"),
@@ -532,6 +593,7 @@
   syncNativeChatGPTProjects().catch(() => {});
   refreshProjectControls();
   bindEvents();
+  consumeLastMoveResult();
 
   function t(key, values = {}) {
     const table = TRANSLATIONS[state.language] || TRANSLATIONS.en;
@@ -663,7 +725,8 @@
       render();
     });
     ui.manageProjects.addEventListener("click", openProjectManager);
-    ui.bulkAssign.addEventListener("click", assignSelectedToProject);
+    ui.smartSuggestions.addEventListener("click", openSmartSuggestions);
+    ui.bulkAssign.addEventListener("click", moveSelectedToProject);
     ui.selectFiltered.addEventListener("click", selectFiltered);
     ui.selectGeneric.addEventListener("click", selectGenericTitles);
     ui.selectDuplicates.addEventListener("click", selectOlderDuplicates);
@@ -736,6 +799,8 @@
     try {
       state.authHeaders = null;
       await getHeaders();
+      await syncNativeChatGPTProjects();
+
       const active = await fetchConversationPages(false, t("activeConversations"));
 
       let archived = [];
@@ -746,17 +811,31 @@
         setStatus(t("archivedUnavailable"));
       }
 
+      let projectItems = [];
+      try {
+        projectItems = await fetchAllNativeProjectConversations();
+      } catch {
+        // Root conversations are still useful if one of the project endpoints changed.
+      }
+
       const activeIds = new Set(active.map((item) => String(item?.id || "")));
       const archivedOnly = archived.filter((item) => !activeIds.has(String(item?.id || "")));
       const byId = new Map();
-      [...active, ...archivedOnly].forEach((item) => {
+
+      [...active, ...archivedOnly, ...projectItems].forEach((item) => {
         if (!item?.id) return;
         const normalized = normalizeConversation(item);
         const previous = byId.get(normalized.id);
-        byId.set(normalized.id, previous ? { ...previous, ...normalized } : normalized);
+        byId.set(normalized.id, previous ? mergeConversationRecords(previous, normalized) : normalized);
       });
 
       state.conversations = [...byId.values()].sort((a, b) => b.updateMs - a.updateMs);
+      state.nativeProjectByConversation = new Map(
+        state.conversations
+          .filter((conversation) => conversation.nativeProjectId)
+          .map((conversation) => [conversation.id, conversation.nativeProjectId])
+      );
+      syncOrganizerWithNativeMembership();
       state.selected = new Set([...state.selected].filter((id) => byId.has(id)));
       setStatus(t("conversationsFound", { count: formatNumber(state.conversations.length) }));
       render();
@@ -770,6 +849,17 @@
       state.scanning = false;
       setControlsBusy(false);
     }
+  }
+
+  function mergeConversationRecords(previous, next) {
+    const preferNextProject = Boolean(next.nativeProjectId);
+    return {
+      ...previous,
+      ...next,
+      snippet: next.snippet || previous.snippet || "",
+      gizmoId: preferNextProject ? next.gizmoId : (previous.gizmoId || next.gizmoId || ""),
+      nativeProjectId: preferNextProject ? next.nativeProjectId : (previous.nativeProjectId || next.nativeProjectId || "")
+    };
   }
 
   async function fetchConversationPages(isArchived, label) {
@@ -814,13 +904,17 @@
   function normalizeConversation(item) {
     const createMs = toMilliseconds(item.create_time || item.created_at);
     const updateMs = toMilliseconds(item.update_time || item.updated_at || item.create_time);
+    const gizmoId = String(item.gizmo_id || item.gizmoId || item.__nativeProjectId || "");
     return {
       id: String(item.id),
       title: String(item.title || t("untitled")),
+      snippet: String(item.snippet || item.__snippet || ""),
       createMs,
       updateMs,
       isArchived: Boolean(item.is_archived),
-      workspaceId: item.workspace_id || item.current_node || null
+      workspaceId: item.workspace_id || null,
+      gizmoId,
+      nativeProjectId: gizmoId && /^g-p-/i.test(gizmoId) ? `chatgpt:${gizmoId}` : ""
     };
   }
 
@@ -863,6 +957,7 @@
     ui.selectedBottom.textContent = formatNumber(state.selected.size);
 
     const hasData = state.conversations.length > 0;
+    ui.smartSuggestions.disabled = !hasData || !nativeProjects().length || state.scanning || state.deleting;
     ui.selectFiltered.disabled = !visible.length || state.scanning || state.deleting;
     ui.selectGeneric.disabled = !hasData || state.scanning || state.deleting;
     ui.selectDuplicates.disabled = !hasData || state.scanning || state.deleting;
@@ -914,8 +1009,8 @@
     articleButton.addEventListener("click", () => {
       const current = getConversationMeta(conversation.id);
       setConversationMeta(conversation.id, current.article
-        ? { article: false, projectId: "" }
-        : { article: true });
+        ? { article: false, projectId: current.projectId }
+        : { article: true, projectId: current.projectId });
       render();
     });
 
@@ -941,13 +1036,31 @@
     projectPicker.setAttribute("aria-label", t("projectForConversation", { title: conversation.title }));
     projectPicker.addEventListener("change", () => {
       const projectId = projectPicker.value || "";
-      setConversationMeta(conversation.id, { projectId, article: projectId ? true : getConversationMeta(conversation.id).article });
-      render();
+      const currentProjectId = conversation.nativeProjectId || getConversationMeta(conversation.id).projectId;
+      if (!projectId) {
+        projectPicker.value = currentProjectId || "";
+        if (conversation.nativeProjectId) setStatus(t("cannotRemoveNativeProject"), true);
+        return;
+      }
+      const targetProject = getProject(projectId);
+      if (!targetProject || targetProject.source !== "chatgpt") {
+        projectPicker.value = currentProjectId || "";
+        setStatus(t("nativeProjectsOnly"), true);
+        return;
+      }
+      if (targetProject.id === conversation.nativeProjectId) {
+        projectPicker.value = targetProject.id;
+        setStatus(t("alreadyInProject"));
+        return;
+      }
+      startNativeMoveQueue([conversation], targetProject);
     });
 
     const link = document.createElement("a");
     link.className = "open-chat";
-    link.href = `${location.origin}/c/${encodeURIComponent(conversation.id)}`;
+    link.href = conversation.gizmoId
+      ? `${location.origin}/g/${encodeURIComponent(conversation.gizmoId)}/c/${encodeURIComponent(conversation.id)}`
+      : `${location.origin}/c/${encodeURIComponent(conversation.id)}`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.textContent = t("open");
@@ -1269,9 +1382,10 @@
 
   function getConversationMeta(id) {
     const value = state.organizer.conversations[id] || {};
+    const nativeProjectId = state.nativeProjectByConversation.get(id) || "";
     return {
       article: Boolean(value.article),
-      projectId: String(value.projectId || "")
+      projectId: String(nativeProjectId || value.projectId || "")
     };
   }
 
@@ -1388,6 +1502,127 @@
     return results;
   }
 
+
+  function nativeProjects() {
+    return state.organizer.projects.filter((project) => project.source === "chatgpt" && project.nativeId);
+  }
+
+  async function fetchNativeProjectConversationPages(project) {
+    const results = [];
+    let cursor = "0";
+    let page = 0;
+
+    do {
+      setStatus(t("projectChatsLoading", { project: project.name }));
+      const params = new URLSearchParams({ cursor: cursor || "0" });
+      const response = await fetch(`/backend-api/gizmos/${encodeURIComponent(project.nativeId)}/conversations?${params}`, {
+        credentials: "include",
+        headers: await getHeaders()
+      });
+
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      results.push(...items.map((item) => ({
+        ...item,
+        gizmo_id: item?.gizmo_id || project.nativeId,
+        __nativeProjectId: project.nativeId
+      })));
+
+      cursor = typeof data?.cursor === "string" && data.cursor ? data.cursor : null;
+      page += 1;
+    } while (cursor && page < 200);
+
+    project.conversationCount = results.length;
+    return results;
+  }
+
+  async function fetchAllNativeProjectConversations() {
+    const results = [];
+    let successful = 0;
+    for (const project of nativeProjects()) {
+      try {
+        const items = await fetchNativeProjectConversationPages(project);
+        results.push(...items);
+        successful += 1;
+      } catch {
+        project.conversationCount = null;
+      }
+    }
+    if (successful) {
+      saveOrganizer();
+      setStatus(t("projectChatsLoaded", { count: formatNumber(results.length) }));
+    }
+    return results;
+  }
+
+  function syncOrganizerWithNativeMembership() {
+    for (const conversation of state.conversations) {
+      if (!conversation.nativeProjectId) continue;
+      const current = getConversationMeta(conversation.id);
+      state.organizer.conversations[conversation.id] = {
+        ...current,
+        projectId: conversation.nativeProjectId
+      };
+    }
+    saveOrganizer();
+  }
+
+  async function createNativeChatGPTProject(name) {
+    const response = await fetch("/backend-api/projects", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        ...(await getHeaders()),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, instructions: "" })
+    });
+
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    let created = null;
+    try {
+      const data = await response.json();
+      created = findNativeProjectDeep(data);
+    } catch {
+      // The project list refresh below is the source of truth.
+    }
+
+    if (created) {
+      const existing = state.organizer.projects.find((project) => project.id === created.id);
+      if (!existing) state.organizer.projects.push(created);
+    }
+
+    await wait(350);
+    await syncNativeChatGPTProjects();
+    return state.organizer.projects.find(
+      (project) => project.source === "chatgpt" && normalizeText(project.name) === normalizeText(name)
+    ) || created;
+  }
+
+  function findNativeProjectDeep(value, depth = 0) {
+    if (!value || depth > 6) return null;
+    if (typeof value === "object") {
+      const normalized = normalizeNativeProject(value);
+      if (normalized) return normalized;
+      for (const child of Object.values(value)) {
+        const found = findNativeProjectDeep(child, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   async function syncNativeChatGPTProjects({ announce = false } = {}) {
     let discovered;
     try {
@@ -1422,7 +1657,7 @@
     return native.length;
   }
 
-  function fillProjectSelect(select, selectedId = "", includeNone = false) {
+  function fillProjectSelect(select, selectedId = "", includeNone = false, nativeOnly = true) {
     select.replaceChildren();
     if (includeNone) {
       const none = document.createElement("option");
@@ -1430,13 +1665,15 @@
       none.textContent = t("noProject");
       select.appendChild(none);
     }
-    state.organizer.projects.forEach((project) => {
-      const option = document.createElement("option");
-      option.value = project.id;
-      option.textContent = project.name;
-      option.selected = project.id === selectedId;
-      select.appendChild(option);
-    });
+    state.organizer.projects
+      .filter((project) => !nativeOnly || project.source === "chatgpt")
+      .forEach((project) => {
+        const option = document.createElement("option");
+        option.value = project.id;
+        option.textContent = project.source === "chatgpt" ? project.name : `${project.name} · ${t("legacyLocal")}`;
+        option.selected = project.id === selectedId;
+        select.appendChild(option);
+      });
   }
 
   function refreshProjectControls() {
@@ -1515,10 +1752,43 @@
         name.value = project.name;
         const save = document.createElement("button");
         save.type = "button";
-        save.textContent = project.source === "chatgpt" ? t("chatgptProject") : t("save");
+        save.textContent = project.source === "chatgpt"
+          ? `${t("viewProjectChats")}${Number.isFinite(project.conversationCount) ? ` · ${t("projectChats", { count: formatNumber(project.conversationCount) })}` : ""}`
+          : t("save");
         if (project.source === "chatgpt") {
           name.readOnly = true;
-          save.disabled = true;
+          save.addEventListener("click", async () => {
+            if (save.disabled) return;
+            save.disabled = true;
+            const previous = save.textContent;
+            save.textContent = t("projectChatsLoading", { project: project.name });
+            try {
+              const items = await fetchNativeProjectConversationPages(project);
+              const byId = new Map(state.conversations.map((conversation) => [conversation.id, conversation]));
+              for (const item of items) {
+                const normalized = normalizeConversation(item);
+                const old = byId.get(normalized.id);
+                byId.set(normalized.id, old ? mergeConversationRecords(old, normalized) : normalized);
+              }
+              state.conversations = [...byId.values()].sort((a, b) => b.updateMs - a.updateMs);
+              state.nativeProjectByConversation = new Map(
+                state.conversations
+                  .filter((conversation) => conversation.nativeProjectId)
+                  .map((conversation) => [conversation.id, conversation.nativeProjectId])
+              );
+              syncOrganizerWithNativeMembership();
+              refreshProjectControls();
+              state.filter.project = project.id;
+              ui.projectFilter.value = project.id;
+              modal.remove();
+              render();
+              setStatus(items.length ? t("projectChatsLoaded", { count: formatNumber(items.length) }) : t("noProjectChats"));
+            } catch (error) {
+              setStatus(explainApiError(error), true);
+              save.disabled = false;
+              save.textContent = previous;
+            }
+          });
         } else {
           save.addEventListener("click", () => {
             const value = name.value.trim();
@@ -1575,20 +1845,39 @@
     close.addEventListener("click", () => modal.remove());
     actions.appendChild(close);
 
-    const addProject = () => {
+    const addProject = async () => {
       const name = input.value.trim();
-      if (!name) return;
-      const existing = state.organizer.projects.find((project) => normalizeText(project.name) === normalizeText(name));
+      if (!name || add.disabled) return;
+      const existing = state.organizer.projects.find(
+        (project) => project.source === "chatgpt" && normalizeText(project.name) === normalizeText(name)
+      );
       if (existing) {
         input.value = "";
+        setStatus(t("projectCreated", { name: existing.name }));
         return;
       }
-      state.organizer.projects.push({ id: makeProjectId(), name });
-      input.value = "";
-      saveOrganizer();
-      refreshProjectControls();
-      draw();
-      render();
+
+      add.disabled = true;
+      input.disabled = true;
+      const oldText = add.textContent;
+      add.textContent = t("creatingProject");
+      setStatus(t("creatingProject"));
+      try {
+        const created = await createNativeChatGPTProject(name);
+        if (!created) throw new Error("Project was created but could not be found.");
+        input.value = "";
+        refreshProjectControls();
+        draw();
+        render();
+        setStatus(t("projectCreated", { name: created.name }));
+      } catch (error) {
+        setStatus(error?.status ? `${t("projectCreateFailed")} (HTTP ${error.status})` : t("projectCreateFailed"), true);
+      } finally {
+        add.disabled = false;
+        input.disabled = false;
+        add.textContent = oldText || t("add");
+        input.focus();
+      }
     };
     add.addEventListener("click", addProject);
     input.addEventListener("keydown", (event) => {
@@ -1617,16 +1906,316 @@
       });
   }
 
-  function assignSelectedToProject() {
+  function moveSelectedToProject() {
     const projectId = ui.bulkProject.value;
-    if (!projectId || !state.selected.size || !getProject(projectId)) return;
-    state.selected.forEach((conversationId) => {
-      const current = getConversationMeta(conversationId);
-      state.organizer.conversations[conversationId] = { ...current, projectId, article: true };
+    const project = getProject(projectId);
+    if (!project || project.source !== "chatgpt" || !state.selected.size) {
+      setStatus(t("nativeProjectsOnly"), true);
+      return;
+    }
+
+    const items = state.conversations.filter(
+      (conversation) => state.selected.has(conversation.id) && conversation.id !== state.currentConversationId
+    );
+    if (!items.length) return;
+    startNativeMoveQueue(items, project);
+  }
+
+  function startNativeMoveQueue(conversations, project = null) {
+    const items = conversations.map((conversation) => {
+      const targetProject = conversation.__targetProject || project;
+      return {
+        id: conversation.id,
+        title: conversation.title,
+        currentGizmoId: conversation.gizmoId || "",
+        targetNativeId: targetProject?.nativeId || "",
+        targetProjectName: targetProject?.name || ""
+      };
+    }).filter((item) => item.id && item.targetNativeId && item.targetProjectName);
+
+    if (!items.length) {
+      setStatus(t("nativeProjectsOnly"), true);
+      return;
+    }
+
+    const queue = {
+      version: 1,
+      items,
+      index: 0,
+      results: [],
+      returnUrl: location.href,
+      language: state.language,
+      startedAt: Date.now()
+    };
+
+    try {
+      localStorage.setItem(MOVE_QUEUE_KEY, JSON.stringify(queue));
+      setStatus(t("moveQueued", { count: formatNumber(items.length) }));
+      window.dispatchEvent(new CustomEvent("chat-cleaner-run-native-move-queue"));
+      closeCleaner();
+    } catch (error) {
+      setStatus(error?.message || t("unknownError"), true);
+    }
+  }
+
+  function consumeLastMoveResult() {
+    try {
+      const raw = localStorage.getItem(MOVE_RESULT_KEY);
+      if (!raw) return;
+      localStorage.removeItem(MOVE_RESULT_KEY);
+      const result = JSON.parse(raw);
+      if (!result || Date.now() - Number(result.finishedAt || 0) > 120000) return;
+      const moved = Number(result.moved || 0);
+      const failed = Number(result.failed || 0);
+      setTimeout(() => {
+        setStatus(
+          t("moveResult", {
+            moved: formatNumber(moved),
+            failed: failed ? t("moveFailuresSuffix", { count: formatNumber(failed) }) : ""
+          }),
+          Boolean(failed)
+        );
+      }, 0);
+    } catch {}
+  }
+
+  const SMART_STOP_WORDS = new Set([
+    "the","a","an","and","or","to","of","in","on","for","with","is","are","was","were","this","that","from","by",
+    "how","what","why","who","chat","new","project","article","articles",
+    "و","یا","در","به","از","برای","با","این","اون","آن","که","چی","چطور","چگونه","یک","یه","را","رو","های","ها",
+    "مقاله","چت","پروژه"
+  ]);
+
+  function smartTokens(text) {
+    return normalizeText(text)
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(/\s+/)
+      .filter((token) => token.length >= 2 && !SMART_STOP_WORDS.has(token));
+  }
+
+  async function enrichConversationSnippetsForSuggestions(limit = 60) {
+    const targets = state.conversations
+      .filter((conversation) => !conversation.nativeProjectId && !conversation.isArchived && !conversation.snippet)
+      .slice(0, limit);
+
+    if (!targets.length) return;
+    setStatus(t("readingSuggestionContext"));
+
+    const concurrency = 4;
+    let index = 0;
+    const worker = async () => {
+      while (index < targets.length) {
+        const currentIndex = index++;
+        const conversation = targets[currentIndex];
+        try {
+          const params = new URLSearchParams({
+            include_has_versions: "true",
+            num_turns: "6"
+          });
+          const response = await fetch(`/backend-api/conversations/${encodeURIComponent(conversation.id)}?${params}`, {
+            credentials: "include",
+            headers: await getHeaders()
+          });
+          if (!response.ok) continue;
+          const data = await response.json();
+          conversation.snippet = extractConversationContext(data);
+        } catch {
+          // Suggestions can still fall back to conversation titles.
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()));
+  }
+
+  function extractConversationContext(data) {
+    const messages = Object.values(data?.mapping || {})
+      .map((node) => node?.message)
+      .filter(Boolean)
+      .sort((a, b) => toMilliseconds(a?.create_time) - toMilliseconds(b?.create_time));
+
+    const parts = [];
+    for (const message of messages) {
+      const role = String(message?.author?.role || "");
+      if (role !== "user") continue;
+      const contentParts = Array.isArray(message?.content?.parts) ? message.content.parts : [];
+      const text = contentParts
+        .filter((part) => typeof part === "string")
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text) parts.push(text);
+      if (parts.join(" ").length >= 1400 || parts.length >= 3) break;
+    }
+    return parts.join(" ").slice(0, 1600);
+  }
+
+  function buildProjectProfiles() {
+    const profiles = new Map();
+    for (const project of nativeProjects()) {
+      const weights = new Map();
+      const addTokens = (text, weight) => {
+        for (const token of smartTokens(text)) {
+          weights.set(token, (weights.get(token) || 0) + weight);
+        }
+      };
+      addTokens(project.name, 7);
+      const chats = state.conversations.filter((conversation) => conversation.gizmoId === project.nativeId);
+      for (const conversation of chats) {
+        addTokens(conversation.title, 2.5);
+        addTokens(conversation.snippet, 0.7);
+      }
+      profiles.set(project.id, { project, weights, chatCount: chats.length });
+    }
+    return profiles;
+  }
+
+  function scoreConversationForProject(conversation, profile) {
+    const tokens = [...new Set(smartTokens(`${conversation.title} ${conversation.snippet || ""}`))];
+    if (!tokens.length) return 0;
+
+    let matched = 0;
+    let strongMatches = 0;
+    for (const token of tokens) {
+      const weight = profile.weights.get(token) || 0;
+      if (!weight) continue;
+      matched += Math.min(weight, 8);
+      if (weight >= 5) strongMatches += 1;
+    }
+
+    const normalizedTitle = normalizeText(conversation.title);
+    const normalizedProject = normalizeText(profile.project.name);
+    let phraseBonus = 0;
+    if (normalizedProject.length >= 3 && normalizedTitle.includes(normalizedProject)) phraseBonus += 10;
+
+    const raw = (matched + phraseBonus) / Math.max(8, tokens.length * 4);
+    const confidence = Math.min(0.98, 1 - Math.exp(-raw * 1.8));
+    return strongMatches ? Math.max(confidence, Math.min(0.92, 0.46 + strongMatches * 0.12)) : confidence;
+  }
+
+  function buildSmartSuggestions() {
+    const profiles = [...buildProjectProfiles().values()];
+    if (!profiles.length) return [];
+
+    return state.conversations
+      .filter((conversation) => !conversation.nativeProjectId && !conversation.isArchived)
+      .slice(0, 250)
+      .map((conversation) => {
+        const scored = profiles
+          .map((profile) => ({
+            project: profile.project,
+            confidence: scoreConversationForProject(conversation, profile)
+          }))
+          .sort((a, b) => b.confidence - a.confidence);
+        const best = scored[0];
+        if (!best || best.confidence < 0.20) return null;
+        return {
+          conversation,
+          project: best.project,
+          confidence: best.confidence
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.confidence - a.confidence);
+  }
+
+  function confidenceLabel(value) {
+    if (value >= 0.70) return t("confidenceHigh");
+    if (value >= 0.45) return t("confidenceMedium");
+    return t("confidenceLow");
+  }
+
+  async function openSmartSuggestions() {
+    if (state.scanning || state.deleting) return;
+    await scanAll();
+    await enrichConversationSnippetsForSuggestions();
+    const suggestions = buildSmartSuggestions();
+
+    const modal = document.createElement("div");
+    modal.className = "modal-backdrop";
+    const card = document.createElement("section");
+    card.className = "modal";
+    card.style.width = "min(860px, 96vw)";
+
+    const title = document.createElement("h2");
+    title.textContent = t("suggestionsTitle");
+    const intro = document.createElement("p");
+    intro.textContent = t("suggestionsIntro");
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:grid;gap:8px;max-height:58vh;overflow:auto;margin-top:12px;";
+
+    const rows = [];
+    if (!suggestions.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.style.minHeight = "160px";
+      empty.textContent = t("noSuggestions");
+      list.appendChild(empty);
+    } else {
+      for (const suggestion of suggestions) {
+        const row = document.createElement("div");
+        row.style.cssText = "display:grid;grid-template-columns:auto minmax(0,1fr) minmax(180px,240px) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);";
+
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = suggestion.confidence >= 0.60;
+        check.style.width = "17px";
+
+        const text = document.createElement("div");
+        text.style.minWidth = "0";
+        const chatTitle = document.createElement("div");
+        chatTitle.className = "title";
+        chatTitle.textContent = suggestion.conversation.title;
+        chatTitle.title = suggestion.conversation.title;
+        const conf = document.createElement("div");
+        conf.className = "meta";
+        conf.textContent = `${t("confidence")}: ${confidenceLabel(suggestion.confidence)} · ${Math.round(suggestion.confidence * 100)}%`;
+        text.append(chatTitle, conf);
+
+        const select = document.createElement("select");
+        fillProjectSelect(select, suggestion.project.id, false, true);
+
+        const badge = createBadge(suggestion.project.name, "project");
+        row.append(check, text, select, badge);
+        list.appendChild(row);
+        rows.push({ suggestion, check, select });
+      }
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "modal-actions";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = t("close");
+    close.addEventListener("click", () => modal.remove());
+
+    const move = document.createElement("button");
+    move.type = "button";
+    move.className = "primary";
+    move.textContent = t("moveApproved");
+    move.disabled = !rows.length;
+    move.addEventListener("click", () => {
+      const approved = rows
+        .filter((row) => row.check.checked)
+        .map((row) => {
+          const project = getProject(row.select.value);
+          if (!project || project.source !== "chatgpt") return null;
+          return { ...row.suggestion.conversation, __targetProject: project };
+        })
+        .filter(Boolean);
+      if (!approved.length) return;
+      modal.remove();
+      startNativeMoveQueue(approved);
     });
-    saveOrganizer();
-    render();
-    setStatus(t("conversationsAssigned", { count: formatNumber(state.selected.size) }));
+
+    actions.append(close, move);
+    card.append(title, intro, list, actions);
+    modal.appendChild(card);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) modal.remove();
+    });
+    ui.shell.appendChild(modal);
   }
 
   function setControlsBusy(busy) {
@@ -1637,6 +2226,7 @@
     ui.articleFilter.disabled = busy;
     ui.projectFilter.disabled = busy;
     ui.manageProjects.disabled = busy;
+    ui.smartSuggestions.disabled = busy || !state.conversations.length || !nativeProjects().length;
     ui.bulkProject.disabled = busy || !state.selected.size;
     ui.bulkAssign.disabled = busy || !state.selected.size || !ui.bulkProject.value;
     if (busy) {

@@ -1,22 +1,25 @@
 # ChatGPT Chat Cleaner & Organizer
 
-A lightweight browser extension for organizing, filtering, marking, exporting, and selectively removing ChatGPT conversations.
+A source-available browser extension for organizing, filtering, reviewing, moving, exporting, and selectively removing ChatGPT conversations.
 
 **Built and maintained by [Shiva Dehghan](https://github.com/Shiva-The-Witch).**
 
 > **Status:** Active development  
-> **Current version:** 1.3.0  
+> **Current version:** 1.4.0  
 > **Platform:** Chromium-based browsers / Manifest V3
 
 ## Features
 
 - Scan active and archived ChatGPT conversations
+- Include conversations that already live inside ChatGPT Projects
+- Discover and synchronize Projects from the signed-in ChatGPT account
+- Create new Projects in ChatGPT from the extension
+- Move one or many eligible conversations into real ChatGPT Projects
+- Queue bulk moves and verify each move before continuing
+- Generate smart project suggestions from project names, existing project conversations, conversation titles, and short local context samples
+- Review suggested destinations before any conversations are moved
 - Search and filter conversation history
-- Multi-select conversations
 - Mark conversations as articles
-- Create and manage local projects
-- Discover and sync Projects already defined in ChatGPT
-- Assign one or multiple conversations to projects
 - Filter by article status or project
 - Detect generic conversation titles
 - Select older duplicate-title conversations
@@ -24,40 +27,59 @@ A lightweight browser extension for organizing, filtering, marking, exporting, a
 - Import a previous JSON selection
 - Selectively delete conversations with an explicit confirmation step
 - Light and dark themes with a ChatGPT-inspired neutral interface
-- Bilingual interface: English and Persian (RTL/LTR) with a persistent language switch
+- Bilingual interface: English and Persian with RTL/LTR switching
 - No external runtime dependencies or build step
 
-## Installation
+## Native ChatGPT Projects
 
-This project is currently distributed as an unpacked Chrome extension.
+Version 1.4.0 changes Projects from a local-only organizer feature into a ChatGPT-aware workflow.
+
+The extension reads the Projects available to the current ChatGPT account and loads conversations already stored in those Projects. Creating a Project from the Project Manager now creates it in ChatGPT instead of creating only a local label.
+
+Moving conversations uses the controls exposed by the ChatGPT web interface. Bulk moves run as a visible queue, one conversation at a time, and the extension attempts to verify the destination before continuing.
+
+Some conversation types may not expose a **Move to project** action in ChatGPT. Those items are reported as failed instead of being silently marked as moved.
+
+## Smart project suggestions
+
+Smart suggestions are computed locally in the browser. The extension builds a lightweight profile for each existing ChatGPT Project from:
+
+- the Project name;
+- titles of conversations already inside that Project;
+- snippets returned with Project conversations; and
+- a short sample of user-authored context from recent unorganized conversations when available.
+
+Suggestions are shown for review before moving anything. The current implementation does **not** send conversation content to an external AI service or third-party categorization backend.
+
+## Installation
 
 1. Download or clone this repository.
 2. Open `chrome://extensions` in a Chromium-based browser.
 3. Enable **Developer mode**.
 4. Click **Load unpacked**.
 5. Select the repository folder containing `manifest.json`.
-6. Open `https://chatgpt.com/`.
-7. Click the extension icon and choose **Open cleaner**.
+6. Refresh any already-open `chatgpt.com` tabs after installing or updating the extension.
+7. Open ChatGPT, click the extension icon, and choose **Open cleaner**.
 
-## How organization data works
+## How local metadata works
 
-Article marks and project assignments are stored locally in the browser using `localStorage` on the ChatGPT origin. They are not synchronized across browsers or devices.
+Article marks and legacy local organizer metadata are stored in `localStorage` on the ChatGPT origin. Native ChatGPT Project membership is treated as the source of truth when it can be read from ChatGPT.
 
-The extension does not currently operate its own backend.
+Older local projects created by previous extension versions may still appear as legacy local entries. New projects created in version 1.4.0 are created in ChatGPT.
 
 ## ChatGPT access
 
-To list and manage conversations, the extension interacts with endpoints used by the ChatGPT web application. When required, the current browser session is used only for requests to the ChatGPT origin.
-
-The extension does not intentionally transmit conversation data or session credentials to third-party servers.
+The extension uses the currently signed-in browser session for requests to the ChatGPT origin. It does not require a separate ChatGPT password or copy session credentials into project files.
 
 See [PRIVACY.md](PRIVACY.md) for details.
 
 ## Important limitations
 
-This is an unofficial third-party project. Some functionality depends on internal ChatGPT web endpoints that are not a documented public API. Changes to ChatGPT may therefore require updates to this extension.
+This is an unofficial third-party project. Some functionality depends on ChatGPT web endpoints and interface controls that are not a documented public extension API. Changes to ChatGPT may therefore require compatibility updates.
 
-Bulk deletion is destructive and cannot be undone. The extension requires explicit confirmation before deletion, but users remain responsible for the conversations they select.
+Project moves are intentionally performed as a visible queue rather than silently claiming success. If ChatGPT does not expose an eligible move action, the item is left unchanged and reported as failed.
+
+Bulk deletion is destructive and cannot be undone. The extension requires explicit confirmation before deletion.
 
 ## Project structure
 
@@ -66,6 +88,7 @@ Bulk deletion is destructive and cannot be undone. The extension requires explic
 ├── manifest.json
 ├── background.js
 ├── page-app.js
+├── queue-runner.js
 ├── popup.html
 ├── popup.css
 ├── popup.js
@@ -93,9 +116,10 @@ Before submitting changes, verify that:
 node --check background.js
 node --check popup.js
 node --check page-app.js
+node --check queue-runner.js
 ```
 
-and that `manifest.json` is valid JSON.
+and that `manifest.json` and locale files are valid JSON.
 
 ## Author
 

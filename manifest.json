@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
   "short_name": "__MSG_extensionShortName__",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "__MSG_extensionDescription__",
-  "minimum_chrome_version": "102",
+  "minimum_chrome_version": "111",
   "permissions": [
     "activeTab",
     "scripting"
@@ -26,5 +26,18 @@
   "icons": {
     "128": "icons/icon.png"
   },
-  "default_locale": "en"
+  "default_locale": "en",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "queue-runner.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
 }

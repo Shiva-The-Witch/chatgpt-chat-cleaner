@@ -87,6 +87,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     await setPageLanguage(tab.id, language);
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
+      files: ["queue-runner.js"],
+      world: "MAIN"
+    });
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
       files: ["page-app.js"],
       world: "MAIN"
     });

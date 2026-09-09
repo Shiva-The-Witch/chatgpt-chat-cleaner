@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.4.0 - 2026-09-09
+
+### Added
+- Load conversations that already belong to native ChatGPT Projects and merge them into the main organizer catalog.
+- Create real ChatGPT Projects directly from the extension Project Manager.
+- Move individual or selected conversations into native ChatGPT Projects through a persistent visible move queue.
+- Verify Project moves before continuing to the next queued conversation.
+- Added **Smart suggestions** for matching unorganized conversations to existing ChatGPT Projects.
+- Smart suggestions use Project names, existing Project chat titles/snippets, and short locally-read conversation context samples.
+- Added native Project conversation counts when available.
+- Added a **View chats** action in Project Manager to load a Project and immediately filter the organizer to its real ChatGPT conversations.
+- Added project-aware conversation links for chats that already live inside a Project.
+
+### Changed
+- Native ChatGPT Project membership now overrides stale local organizer metadata.
+- New Project creation is no longer local-only.
+- Bulk **Assign project** behavior is now a real **Move to project** workflow for native ChatGPT Projects.
+- Legacy local projects remain readable for backward compatibility but are not offered as native move destinations.
+
+### Privacy
+- Smart suggestions are computed locally and do not send conversation content to an external categorization service.
+
 ## 1.3.2 - 2026-09-06
 
 - Fixed ChatGPT project discovery by loading native Projects directly from ChatGPT's project sidebar endpoint instead of relying only on rendered sidebar links.
