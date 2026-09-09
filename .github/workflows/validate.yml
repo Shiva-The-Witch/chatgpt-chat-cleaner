@@ -22,5 +22,8 @@ jobs:
           node --check popup.js
           node --check page-app.js
 
-      - name: Validate manifest JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json OK')"
+      - name: Validate extension JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json OK')"
+          node -e "JSON.parse(require('fs').readFileSync('_locales/en/messages.json','utf8')); console.log('English locale OK')"
+          node -e "JSON.parse(require('fs').readFileSync('_locales/fa/messages.json','utf8')); console.log('Persian locale OK')"
