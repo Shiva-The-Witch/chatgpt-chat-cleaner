@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -27,3 +30,25 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest.json OK')"
           node -e "JSON.parse(require('fs').readFileSync('_locales/en/messages.json','utf8')); console.log('English locale OK')"
           node -e "JSON.parse(require('fs').readFileSync('_locales/fa/messages.json','utf8')); console.log('Persian locale OK')"
+
+      - name: Validate release metadata
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const english = JSON.parse(fs.readFileSync('_locales/en/messages.json', 'utf8'));
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const bugTemplate = fs.readFileSync('.github/ISSUE_TEMPLATE/bug_report.yml', 'utf8');
+
+          if (english.extensionName?.message !== 'Chat Cleaner & Organizer') {
+            throw new Error('The public display name is out of sync.');
+          }
+          if (!changelog.includes(`## ${manifest.version} -`)) {
+            throw new Error(`CHANGELOG.md has no entry for ${manifest.version}.`);
+          }
+          if (!bugTemplate.includes(`value: "${manifest.version}"`)) {
+            throw new Error(`The bug report template is not set to ${manifest.version}.`);
+          }
+
+          console.log(`Release metadata OK (${manifest.version})`);
+          NODE
