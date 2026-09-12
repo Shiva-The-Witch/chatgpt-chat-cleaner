@@ -11,8 +11,6 @@
   const STORAGE_KEY = "chat-cleaner-organizer-v1";
   const THEME_KEY = "chat-cleaner-theme-v1";
   const LANGUAGE_KEY = "chat-cleaner-language-v1";
-  const MOVE_QUEUE_KEY = "chat-cleaner-native-move-queue-v1";
-  const MOVE_RESULT_KEY = "chat-cleaner-last-move-result-v1";
 
   const TRANSLATIONS = {
     en: {
@@ -128,7 +126,11 @@
       projectCreated: "Project “{name}” was created in ChatGPT.",
       projectCreateFailed: "Could not create the project in ChatGPT.",
       nativeProjectsOnly: "Choose a ChatGPT project to move conversations.",
-      moveQueued: "{count} conversations queued to move.",
+      moveQueued: "{count} conversations ready to move.",
+      moveStarting: "Moving {count} conversations directly through your current ChatGPT session…",
+      moveProgress: "Moving {current} of {total}: {title}",
+      moveRatePause: "ChatGPT is rate-limiting requests. Pausing for {seconds}s before retrying…",
+      moveStoppedRateLimit: "The move was paused because ChatGPT kept rate-limiting requests. {moved} conversations were moved before the stop.",
       moveResult: "{moved} moved{failed}.",
       moveFailuresSuffix: "; {count} failed",
       moveToProject: "Move to project",
@@ -279,6 +281,7 @@
     authHeaders: null,
     scanning: false,
     deleting: false,
+    moving: false,
     language: "en",
     currentConversationId: getCurrentConversationId(),
     organizer: loadOrganizer(),
@@ -593,7 +596,6 @@
   syncNativeChatGPTProjects().catch(() => {});
   refreshProjectControls();
   bindEvents();
-  consumeLastMoveResult();
 
   function t(key, values = {}) {
     const table = TRANSLATIONS[state.language] || TRANSLATIONS.en;
@@ -699,7 +701,7 @@
     window.addEventListener("chat-cleaner-language-change", onExternalLanguageChange);
     ui.themeToggle.addEventListener("click", toggleTheme);
     ui.shell.addEventListener("click", (event) => {
-      if (event.target === ui.shell && !state.deleting) closeCleaner();
+      if (event.target === ui.shell && !state.deleting && !state.moving) closeCleaner();
     });
     document.addEventListener("keydown", onEscape, { capture: true });
 
@@ -751,7 +753,7 @@
   }
 
   function onEscape(event) {
-    if (event.key !== "Escape" || state.deleting) return;
+    if (event.key !== "Escape" || state.deleting || state.moving) return;
     closeCleaner();
   }
 
@@ -1033,6 +1035,7 @@
     const projectPicker = document.createElement("select");
     projectPicker.className = "project-picker";
     fillProjectSelect(projectPicker, metaData.projectId, true);
+    projectPicker.disabled = state.moving || state.scanning || state.deleting;
     projectPicker.setAttribute("aria-label", t("projectForConversation", { title: conversation.title }));
     projectPicker.addEventListener("change", () => {
       const projectId = projectPicker.value || "";
@@ -1921,14 +1924,63 @@
     startNativeMoveQueue(items, project);
   }
 
-  function startNativeMoveQueue(conversations, project = null) {
+  function parseRetryAfterMs(response) {
+    const value = response?.headers?.get?.("retry-after");
+    if (!value) return 0;
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(60000, seconds * 1000);
+    const when = Date.parse(value);
+    return Number.isFinite(when) ? Math.max(0, Math.min(60000, when - Date.now())) : 0;
+  }
+
+  async function moveConversationDirect(conversationId, targetNativeId, movedSoFar = 0) {
+    const normalizedTarget = String(targetNativeId || "").match(/^(g-p-[0-9a-f]{32})/i)?.[1] || String(targetNativeId || "");
+    const retryDelays = [2200, 5000, 10000, 20000];
+
+    for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+      const response = await fetch(`/backend-api/conversation/${encodeURIComponent(conversationId)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          ...(await getHeaders()),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ gizmo_id: normalizedTarget })
+      });
+
+      if (response.ok) return;
+
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+
+      if (![429, 502, 503, 504].includes(response.status)) throw error;
+      if (attempt >= retryDelays.length) {
+        error.rateLimited = response.status === 429;
+        error.movedSoFar = movedSoFar;
+        throw error;
+      }
+
+      const retryAfter = parseRetryAfterMs(response);
+      const jitter = Math.floor(Math.random() * 350);
+      const delay = Math.max(retryDelays[attempt], retryAfter) + jitter;
+      setStatus(t("moveRatePause", { seconds: formatNumber(Math.ceil(delay / 1000)) }));
+      await wait(delay);
+      if (response.status === 401 || response.status === 403) state.authHeaders = null;
+    }
+  }
+
+  async function startNativeMoveQueue(conversations, project = null) {
+    if (state.moving || state.deleting || state.scanning) return;
+
     const items = conversations.map((conversation) => {
       const targetProject = conversation.__targetProject || project;
       return {
+        conversation,
         id: conversation.id,
         title: conversation.title,
         currentGizmoId: conversation.gizmoId || "",
         targetNativeId: targetProject?.nativeId || "",
+        targetProjectId: targetProject?.id || "",
         targetProjectName: targetProject?.name || ""
       };
     }).filter((item) => item.id && item.targetNativeId && item.targetProjectName);
@@ -1938,45 +1990,89 @@
       return;
     }
 
-    const queue = {
-      version: 1,
-      items,
-      index: 0,
-      results: [],
-      returnUrl: location.href,
-      language: state.language,
-      startedAt: Date.now()
-    };
-
-    try {
-      localStorage.setItem(MOVE_QUEUE_KEY, JSON.stringify(queue));
-      setStatus(t("moveQueued", { count: formatNumber(items.length) }));
-      window.dispatchEvent(new CustomEvent("chat-cleaner-run-native-move-queue"));
-      closeCleaner();
-    } catch (error) {
-      setStatus(error?.message || t("unknownError"), true);
+    const pending = items.filter((item) => item.currentGizmoId !== item.targetNativeId);
+    const alreadyThere = items.length - pending.length;
+    if (!pending.length) {
+      setStatus(t("alreadyInProject"));
+      return;
     }
-  }
 
-  function consumeLastMoveResult() {
+    state.moving = true;
+    setControlsBusy(true);
+    render();
+    setStatus(t("moveStarting", { count: formatNumber(pending.length) }));
+
+    let moved = 0;
+    const failures = [];
+    let stoppedByRateLimit = false;
+    let fatalStatus = null;
+
     try {
-      const raw = localStorage.getItem(MOVE_RESULT_KEY);
-      if (!raw) return;
-      localStorage.removeItem(MOVE_RESULT_KEY);
-      const result = JSON.parse(raw);
-      if (!result || Date.now() - Number(result.finishedAt || 0) > 120000) return;
-      const moved = Number(result.moved || 0);
-      const failed = Number(result.failed || 0);
-      setTimeout(() => {
-        setStatus(
-          t("moveResult", {
-            moved: formatNumber(moved),
-            failed: failed ? t("moveFailuresSuffix", { count: formatNumber(failed) }) : ""
-          }),
-          Boolean(failed)
-        );
-      }, 0);
-    } catch {}
+      for (let index = 0; index < pending.length; index += 1) {
+        const item = pending[index];
+        setStatus(t("moveProgress", {
+          current: formatNumber(index + 1),
+          total: formatNumber(pending.length),
+          title: item.title
+        }));
+
+        try {
+          await moveConversationDirect(item.id, item.targetNativeId, moved);
+          moved += 1;
+
+          item.conversation.gizmoId = item.targetNativeId;
+          item.conversation.nativeProjectId = item.targetProjectId;
+          state.nativeProjectByConversation.set(item.id, item.targetProjectId);
+          const currentMeta = getConversationMeta(item.id);
+          state.organizer.conversations[item.id] = {
+            ...currentMeta,
+            projectId: item.targetProjectId
+          };
+          state.selected.delete(item.id);
+        } catch (error) {
+          failures.push({ id: item.id, title: item.title, status: error?.status || null });
+          if (error?.rateLimited) {
+            stoppedByRateLimit = true;
+            break;
+          }
+          if ([401, 403, 405].includes(error?.status)) {
+            fatalStatus = error.status;
+            break;
+          }
+        }
+
+        // Keep the request cadence deliberately conservative. Moving no longer
+        // navigates or loads conversation pages, so this is the only request per item.
+        if (index < pending.length - 1) await wait(750 + Math.floor(Math.random() * 250));
+      }
+    } finally {
+      if (moved) saveOrganizer();
+      state.moving = false;
+      setControlsBusy(false);
+      refreshProjectControls();
+      render();
+    }
+
+    if (stoppedByRateLimit) {
+      setStatus(t("moveStoppedRateLimit", { moved: formatNumber(moved) }), true);
+      return;
+    }
+
+    if (fatalStatus === 401 || fatalStatus === 403) {
+      state.authHeaders = null;
+      setStatus(t("authError"), true);
+      return;
+    }
+    if (fatalStatus === 405) {
+      setStatus(t("interfaceChangedError"), true);
+      return;
+    }
+
+    const failedCount = failures.length;
+    setStatus(t("moveResult", {
+      moved: formatNumber(moved + alreadyThere),
+      failed: failedCount ? t("moveFailuresSuffix", { count: formatNumber(failedCount) }) : ""
+    }), Boolean(failedCount));
   }
 
   const SMART_STOP_WORDS = new Set([
@@ -2001,7 +2097,7 @@
     if (!targets.length) return;
     setStatus(t("readingSuggestionContext"));
 
-    const concurrency = 4;
+    const concurrency = 2;
     let index = 0;
     const worker = async () => {
       while (index < targets.length) {
@@ -2016,9 +2112,14 @@
             credentials: "include",
             headers: await getHeaders()
           });
+          if (response.status === 429) {
+            await wait(1800 + Math.floor(Math.random() * 500));
+            continue;
+          }
           if (!response.ok) continue;
           const data = await response.json();
           conversation.snippet = extractConversationContext(data);
+          await wait(180);
         } catch {
           // Suggestions can still fall back to conversation titles.
         }

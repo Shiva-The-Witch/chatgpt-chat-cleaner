@@ -5,7 +5,7 @@ A source-available browser extension for organizing, filtering, reviewing, movin
 **Built and maintained by [Shiva Dehghan](https://github.com/Shiva-The-Witch).**
 
 > **Status:** Active development  
-> **Current version:** 1.4.0  
+> **Current version:** 1.4.1  
 > **Platform:** Chromium-based browsers / Manifest V3
 
 ## Features
@@ -15,7 +15,7 @@ A source-available browser extension for organizing, filtering, reviewing, movin
 - Discover and synchronize Projects from the signed-in ChatGPT account
 - Create new Projects in ChatGPT from the extension
 - Move one or many eligible conversations into real ChatGPT Projects
-- Queue bulk moves and verify each move before continuing
+- Move conversations directly through the current user’s ChatGPT session without opening conversation pages
 - Generate smart project suggestions from project names, existing project conversations, conversation titles, and short local context samples
 - Review suggested destinations before any conversations are moved
 - Search and filter conversation history
@@ -36,9 +36,9 @@ Version 1.4.0 changes Projects from a local-only organizer feature into a ChatGP
 
 The extension reads the Projects available to the current ChatGPT account and loads conversations already stored in those Projects. Creating a Project from the Project Manager now creates it in ChatGPT instead of creating only a local label.
 
-Moving conversations uses the controls exposed by the ChatGPT web interface. Bulk moves run as a visible queue, one conversation at a time, and the extension attempts to verify the destination before continuing.
+Moving conversations no longer navigates through conversation pages. The extension sends the same account-scoped project assignment directly to ChatGPT using the browser session of the person currently signed in on `chatgpt.com`.
 
-Some conversation types may not expose a **Move to project** action in ChatGPT. Those items are reported as failed instead of being silently marked as moved.
+Moves are processed sequentially with a conservative delay and automatic backoff when ChatGPT returns a rate-limit or temporary server response. No API key belonging to the extension author is embedded or shared.
 
 ## Smart project suggestions
 
@@ -69,7 +69,9 @@ Older local projects created by previous extension versions may still appear as 
 
 ## ChatGPT access
 
-The extension uses the currently signed-in browser session for requests to the ChatGPT origin. It does not require a separate ChatGPT password or copy session credentials into project files.
+The extension uses the currently signed-in browser session for requests to the ChatGPT origin. Every user therefore operates on their own ChatGPT account, conversations, and Projects. The extension does not use Shiva Dehghan’s account, API key, or session for other users.
+
+It does not require a separate ChatGPT password and does not copy session credentials into project files.
 
 See [PRIVACY.md](PRIVACY.md) for details.
 
@@ -77,7 +79,7 @@ See [PRIVACY.md](PRIVACY.md) for details.
 
 This is an unofficial third-party project. Some functionality depends on ChatGPT web endpoints and interface controls that are not a documented public extension API. Changes to ChatGPT may therefore require compatibility updates.
 
-Project moves are intentionally performed as a visible queue rather than silently claiming success. If ChatGPT does not expose an eligible move action, the item is left unchanged and reported as failed.
+Project moves rely on internal ChatGPT web endpoints rather than a documented public extension API. If those endpoints change, a compatibility update may be required.
 
 Bulk deletion is destructive and cannot be undone. The extension requires explicit confirmation before deletion.
 
@@ -88,7 +90,6 @@ Bulk deletion is destructive and cannot be undone. The extension requires explic
 ├── manifest.json
 ├── background.js
 ├── page-app.js
-├── queue-runner.js
 ├── popup.html
 ├── popup.css
 ├── popup.js
@@ -116,7 +117,6 @@ Before submitting changes, verify that:
 node --check background.js
 node --check popup.js
 node --check page-app.js
-node --check queue-runner.js
 ```
 
 and that `manifest.json` and locale files are valid JSON.

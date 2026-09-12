@@ -13,7 +13,7 @@ When used on `chatgpt.com` or `chat.openai.com`, the extension may access data a
 - conversations already associated with ChatGPT Projects; and
 - a short sample of user-authored conversation context when Smart suggestions are explicitly opened.
 
-For requests to the ChatGPT web application, the extension may read the current session from `/api/auth/session`. If an access token is present, it is used only for requests to the ChatGPT origin.
+For requests to the ChatGPT web application, the extension may read the current session from `/api/auth/session`. If an access token is present, it is used only for requests to the ChatGPT origin. The token belongs to the user currently signed in to ChatGPT in that browser session; the extension does not bundle or substitute an author-owned API key.
 
 ## Smart suggestions
 
@@ -25,16 +25,14 @@ Short context samples used for suggestions are kept in the in-memory organizer s
 
 The extension may store the following in `localStorage` on the ChatGPT origin:
 
-- article marks and legacy local organizer metadata;
-- theme and language preferences;
-- a temporary Project-move queue so a multi-chat move can continue across ChatGPT page navigations; and
-- the most recent move result long enough to display a completion summary.
+- article marks and legacy local organizer metadata; and
+- theme and language preferences.
 
 The extension does not intentionally persist ChatGPT access tokens or cookies in `localStorage`, `chrome.storage`, or project files.
 
 ## Native Project operations
 
-Creating Projects and reading Project membership use the active ChatGPT browser session. Conversation moves use the Project controls exposed by the ChatGPT web interface and are processed one at a time.
+Creating Projects and reading Project membership use the active ChatGPT browser session. Conversation moves are sent directly to ChatGPT using the active browser session of the currently signed-in user. The extension does not open each conversation page to perform a move. Requests are processed one at a time with rate-limit backoff.
 
 ## Third-party transmission
 

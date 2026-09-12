@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.1 - 2026-09-12
+
+### Changed
+- Replaced page-by-page Project moves with direct account-scoped ChatGPT requests.
+- Moving conversations no longer opens, navigates to, or reloads conversation pages.
+- Every installation uses the session of the user currently signed in to ChatGPT; no author-owned API key or session is embedded.
+- Added conservative sequential move pacing and exponential rate-limit backoff for HTTP 429 and temporary 5xx responses.
+- Reduced Smart suggestion context-fetch concurrency to lower request pressure.
+- Removed the persistent navigation queue and `queue-runner.js`.
+
+### Privacy
+- Project moves stay on the ChatGPT origin and use only the current user’s browser session.
+- Move queues and move-result records are no longer persisted in `localStorage`.
+
 ## 1.4.0 - 2026-09-09
 
 ### Added
