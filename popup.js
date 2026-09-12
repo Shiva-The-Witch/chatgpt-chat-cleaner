@@ -2,7 +2,7 @@ const LANGUAGE_KEY = "chat-cleaner-popup-language-v1";
 
 const STRINGS = {
   en: {
-    title: "Chat Cleaner",
+    title: "Chat Cleaner & Organizer",
     description: "Organize and manage ChatGPT conversations",
     open: "Open cleaner",
     opening: "Opening…",
@@ -10,7 +10,7 @@ const STRINGS = {
     switchLanguage: "Switch to Persian"
   },
   fa: {
-    title: "پاک‌ساز چت",
+    title: "پاک‌ساز و سامان‌دهنده چت",
     description: "مدیریت و دسته‌بندی گفتگوهای ChatGPT",
     open: "باز کردن پاک‌ساز",
     opening: "در حال باز کردن…",
@@ -53,7 +53,7 @@ function applyLanguage(nextLanguage, persist = true) {
   language = nextLanguage === "fa" ? "fa" : "en";
   document.documentElement.lang = language;
   document.documentElement.dir = language === "fa" ? "rtl" : "ltr";
-  document.title = language === "fa" ? "پاک‌ساز و سامان‌دهنده چت ChatGPT" : "ChatGPT Chat Cleaner & Organizer";
+  document.title = language === "fa" ? "پاک‌ساز و سامان‌دهنده چت" : "Chat Cleaner & Organizer";
 
   appTitle.textContent = t("title");
   appDescription.textContent = t("description");

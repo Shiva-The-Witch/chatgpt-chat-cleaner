@@ -1,11 +1,11 @@
-# ChatGPT Chat Cleaner & Organizer
+# Chat Cleaner & Organizer
 
 A source-available browser extension for organizing, filtering, reviewing, moving, exporting, and selectively removing ChatGPT conversations.
 
 **Built and maintained by [Shiva Dehghan](https://github.com/Shiva-The-Witch).**
 
-> **Status:** Active development  
-> **Current version:** 1.4.1  
+> **Status:** Public beta  
+> **Current version:** 1.4.2  
 > **Platform:** Chromium-based browsers / Manifest V3
 
 ## Features

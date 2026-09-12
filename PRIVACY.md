@@ -2,7 +2,7 @@
 
 ## Overview
 
-ChatGPT Chat Cleaner & Organizer runs in the browser and does not currently operate an external analytics service, advertising system, telemetry service, or AI categorization backend.
+Chat Cleaner & Organizer runs in the browser and does not currently operate an external analytics service, advertising system, telemetry service, or AI categorization backend.
 
 ## Data the extension accesses
 

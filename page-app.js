@@ -14,8 +14,8 @@
 
   const TRANSLATIONS = {
     en: {
-      appLabel: "ChatGPT Chat Cleaner & Organizer",
-      appTitle: "Chat Cleaner",
+      appLabel: "Chat Cleaner & Organizer",
+      appTitle: "Chat Cleaner & Organizer",
       toggleTheme: "Toggle theme",
       switchToLight: "Switch to light mode",
       switchToDark: "Switch to dark mode",
@@ -146,8 +146,8 @@
       unknown: "Unknown"
     },
     fa: {
-      appLabel: "پاک‌ساز و سامان‌دهنده چت ChatGPT",
-      appTitle: "پاک‌ساز چت",
+      appLabel: "پاک‌ساز و سامان‌دهنده چت",
+      appTitle: "پاک‌ساز و سامان‌دهنده چت",
       toggleTheme: "تغییر حالت نمایش",
       switchToLight: "رفتن به حالت روشن",
       switchToDark: "رفتن به حالت تیره",
@@ -481,7 +481,7 @@
         .footer select { flex:1 1 100%; max-width:none; }
       }
     </style>
-    <section class="shell" data-i18n-aria-label="appLabel" aria-label="ChatGPT Chat Cleaner & Organizer">
+    <section class="shell" data-i18n-aria-label="appLabel" aria-label="Chat Cleaner & Organizer">
       <div class="panel">
         <header class="header">
           <div class="mark" aria-hidden="true">
@@ -490,7 +490,7 @@
               <path d="m15.5 16.5 4.2-4.2M17.3 18.3l2.4-2.4M14.3 19.2l4.9 1.3"/>
             </svg>
           </div>
-          <div class="heading"><h1 data-i18n="appTitle">Chat Cleaner</h1></div>
+          <div class="heading"><h1 data-i18n="appTitle">Chat Cleaner & Organizer</h1></div>
           <div class="header-actions">
             <button class="language-toggle icon-button ghost" type="button" aria-label="Switch language" title="Switch language">فا</button>
             <button class="theme-toggle icon-button ghost" type="button" data-i18n-aria-label="toggleTheme" data-i18n-title="toggleTheme" aria-label="Toggle theme" title="Toggle theme">☾</button>

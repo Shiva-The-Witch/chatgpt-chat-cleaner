@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.2 - 2026-09-12
+
+### Changed
+- Adopted the independent display name **Chat Cleaner & Organizer** while keeping ChatGPT references where they describe compatibility or functionality.
+- Marked the project as a public beta and synchronized release metadata with version 1.4.2.
+- Restricted the GitHub Actions token to read-only repository access.
+
+### Compatibility
+- Conversation moves continue to use direct account-scoped requests and never open or navigate through conversation pages.
+
 ## 1.4.1 - 2026-09-12
 
 ### Changed
