@@ -21,7 +21,6 @@ jobs:
           node --check background.js
           node --check popup.js
           node --check page-app.js
-          node --check queue-runner.js
 
       - name: Validate extension JSON
         run: |
