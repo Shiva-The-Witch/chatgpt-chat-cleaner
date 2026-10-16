@@ -11,6 +11,9 @@
   const STORAGE_KEY = "chat-cleaner-organizer-v1";
   const THEME_KEY = "chat-cleaner-theme-v1";
   const LANGUAGE_KEY = "chat-cleaner-language-v1";
+  const PROTECTED_KEY = "chat-cleaner-protected-v1";
+  const safeProtected = (() => { try { return new Set(JSON.parse(localStorage.getItem(PROTECTED_KEY) || "[]")); } catch { return new Set(); } })();
+  const previewCache = new Map();
 
   const TRANSLATIONS = {
     en: {
@@ -55,6 +58,17 @@
       moveSelectedTo: "Move selected to…",
       assignProject: "Assign project",
       exportSelection: "Export selection",
+      exportWord: "Export full Word",
+      exportWordProgress: "Reading full chats: {current}/{total}",
+      exportWordSuccess: "Full Word archive created: {count} chats.",
+      exportWordError: "Word export stopped: {error}. No incomplete archive was saved.",
+      previewLoad: "Read preview",
+      previewUnavailable: "Preview unavailable — review manually",
+      previewRequired: "Preview not checked",
+      protect: "Protect",
+      unprotect: "Unprotect",
+      excludedProtected: "{count} protected conversations excluded.",
+      reviewBeforeDelete: "Review conversations and export a backup before permanent deletion.",
       deleteSelected: "Delete selected",
       scanning: "Scanning…",
       activeConversations: "active conversations",
@@ -187,6 +201,17 @@
       moveSelectedTo: "انتقال انتخاب‌ها به…",
       assignProject: "ثبت پروژه",
       exportSelection: "خروجی انتخاب",
+      exportWord: "خروجی ورد کامل",
+      exportWordProgress: "خواندن متن چت‌ها: {current}/{total}",
+      exportWordSuccess: "خروجی کامل ورد از {count} چت ساخته شد.",
+      exportWordError: "خروجی ورد متوقف شد: {error}. فایل ناقص ذخیره نشد.",
+      previewLoad: "خواندن توضیح",
+      previewUnavailable: "توضیح در دسترس نیست؛ دستی بررسی کن",
+      previewRequired: "محتوا هنوز بررسی نشده",
+      protect: "محافظت",
+      unprotect: "لغو محافظت",
+      excludedProtected: "{count} گفتگوی محافظت‌شده کنار گذاشته شد.",
+      reviewBeforeDelete: "قبل از حذف دائمی گفتگوها را بررسی کن و نسخه پشتیبان بگیر.",
       deleteSelected: "حذف انتخاب‌ها",
       scanning: "در حال اسکن…",
       activeConversations: "گفتگوهای فعال",
@@ -278,6 +303,7 @@
     conversations: [],
     nativeProjectByConversation: new Map(),
     selected: new Set(),
+    exportingWord: false,
     authHeaders: null,
     scanning: false,
     deleting: false,
@@ -427,6 +453,9 @@
       .shell[data-theme="dark"] .badge.protect { color:#f0c96a; border-color:#6f5c31; background:#322a18; }
       .badge.article { color:var(--accent); border-color:rgba(16,163,127,.35); background:var(--accent-soft); }
       .badge.project { color:var(--text); background:var(--surface); }
+      .chat-preview { color:var(--muted);font-size:11px;line-height:1.7;margin-top:5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:normal; }
+      .preview-load { border:0;background:transparent;color:var(--accent);padding:2px 0;min-height:20px;font-size:10px; }
+      .protect-toggle { min-width:65px;font-size:10px; }
       .article-toggle { min-width:70px; padding:7px 9px; font-size:11px; }
       .article-toggle.active { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
       .project-picker { min-width:0; min-height:36px; padding:7px 9px; font-size:11px; }
@@ -553,6 +582,7 @@
           </select>
           <button class="bulk-assign" type="button" disabled data-i18n="moveToProject">Move to project</button>
           <button class="export-selection" type="button" disabled data-i18n="exportSelection">Export selection</button>
+          <button class="export-word primary" type="button" disabled data-i18n="exportWord">Export full Word</button>
           <button class="delete danger" type="button" disabled data-i18n="deleteSelected">Delete selected</button>
         </footer>
       </div>
@@ -578,6 +608,7 @@
     clearSelection: shadow.querySelector(".clear-selection"),
     exportCatalog: shadow.querySelector(".export-catalog"),
     exportSelection: shadow.querySelector(".export-selection"),
+    exportWord: shadow.querySelector(".export-word"),
     importSelection: shadow.querySelector(".import-selection"),
     fileInput: shadow.querySelector(".file-input"),
     bulkProject: shadow.querySelector(".bulk-project"),
@@ -738,6 +769,7 @@
     });
     ui.exportCatalog.addEventListener("click", exportCatalog);
     ui.exportSelection.addEventListener("click", exportSelection);
+    ui.exportWord.addEventListener("click", exportFullWord);
     ui.importSelection.addEventListener("click", () => ui.fileInput.click());
     ui.fileInput.addEventListener("change", importSelectionFile);
     ui.deleteButton.addEventListener("click", openDeleteConfirmation);
@@ -967,6 +999,7 @@
     ui.exportCatalog.disabled = !hasData || state.deleting;
     ui.importSelection.disabled = !hasData || state.deleting;
     ui.exportSelection.disabled = !state.selected.size || state.deleting;
+    ui.exportWord.disabled = !state.selected.size || state.deleting || state.exportingWord;
     ui.bulkProject.disabled = !state.selected.size || state.deleting;
     ui.bulkAssign.disabled = !state.selected.size || !ui.bulkProject.value || state.deleting;
     ui.deleteButton.disabled = !state.selected.size || state.deleting;
@@ -986,7 +1019,7 @@
   }
 
   function createRow(conversation) {
-    const protectedChat = conversation.id === state.currentConversationId;
+    const protectedChat = isProtected(conversation);
     const metaData = getConversationMeta(conversation.id);
     const row = document.createElement("article");
     row.className = `row${protectedChat ? " protected" : ""}`;
@@ -1030,7 +1063,20 @@
     if (metaData.article) meta.appendChild(createBadge(t("article"), "article"));
     const project = getProject(metaData.projectId);
     if (project) meta.appendChild(createBadge(project.name, "project"));
-    main.append(title, meta);
+    const preview = document.createElement("div");
+    preview.className = "chat-preview";
+    preview.textContent = previewCache.get(conversation.id) || conversation.snippet || t("previewRequired");
+    const readPreview = document.createElement("button");
+    readPreview.type = "button";
+    readPreview.className = "preview-load";
+    readPreview.textContent = t("previewLoad");
+    readPreview.addEventListener("click", async () => {
+      readPreview.disabled = true;
+      try { const data = await getFullConversation(conversation.id); const value = makePreview(data); previewCache.set(conversation.id, value); preview.textContent = value; }
+      catch { preview.textContent = t("previewUnavailable"); }
+      finally { readPreview.disabled = false; }
+    });
+    main.append(title, preview, readPreview, meta);
 
     const projectPicker = document.createElement("select");
     projectPicker.className = "project-picker";
@@ -1068,7 +1114,19 @@
     link.rel = "noopener noreferrer";
     link.textContent = t("open");
 
-    row.append(checkbox, articleButton, main, projectPicker, link);
+    const protectButton = document.createElement("button");
+    protectButton.type = "button";
+    protectButton.className = "protect-toggle";
+    protectButton.textContent = safeProtected.has(conversation.id) ? t("unprotect") : t("protect");
+    protectButton.disabled = conversation.id === state.currentConversationId;
+    protectButton.addEventListener("click", () => {
+      if (safeProtected.has(conversation.id)) safeProtected.delete(conversation.id);
+      else safeProtected.add(conversation.id);
+      try { localStorage.setItem(PROTECTED_KEY, JSON.stringify([...safeProtected])); } catch {}
+      state.selected.delete(conversation.id);
+      render();
+    });
+    row.append(checkbox, articleButton, main, projectPicker, protectButton, link);
     return row;
   }
 
@@ -1084,6 +1142,7 @@
     ui.selectedBottom.textContent = formatNumber(state.selected.size);
     ui.clearSelection.disabled = !state.selected.size || state.deleting;
     ui.exportSelection.disabled = !state.selected.size || state.deleting;
+    ui.exportWord.disabled = !state.selected.size || state.deleting || state.exportingWord;
     ui.bulkProject.disabled = !state.selected.size || state.deleting;
     ui.bulkAssign.disabled = !state.selected.size || !ui.bulkProject.value || state.deleting;
     ui.deleteButton.disabled = !state.selected.size || state.deleting;
@@ -1091,7 +1150,7 @@
 
   function selectFiltered() {
     filteredConversations().forEach((conversation) => {
-      if (conversation.id !== state.currentConversationId) state.selected.add(conversation.id);
+      if (!isProtected(conversation)) state.selected.add(conversation.id);
     });
     render();
     setStatus(t("filteredSelected"));
@@ -1102,7 +1161,7 @@
     let added = 0;
     state.conversations.forEach((conversation) => {
       const title = normalizeText(conversation.title);
-      if (conversation.id !== state.currentConversationId && (exactGeneric.test(title) || title.length <= 2)) {
+      if (!isProtected(conversation) && (exactGeneric.test(title) || title.length <= 2)) {
         if (!state.selected.has(conversation.id)) added += 1;
         state.selected.add(conversation.id);
       }
@@ -1125,13 +1184,129 @@
       if (items.length < 2) return;
       items.sort((a, b) => b.updateMs - a.updateMs);
       items.slice(1).forEach((conversation) => {
-        if (conversation.id === state.currentConversationId) return;
+        if (isProtected(conversation)) return;
         if (!state.selected.has(conversation.id)) added += 1;
         state.selected.add(conversation.id);
       });
     });
     render();
     setStatus(t("duplicatesSelected", { count: formatNumber(added) }));
+  }
+
+
+  function isProtected(conversation) {
+    return conversation.id === state.currentConversationId || safeProtected.has(conversation.id);
+  }
+
+  async function getFullConversation(id) {
+    const params = new URLSearchParams({ include_has_versions: "true" });
+    const response = await fetch(`/backend-api/conversation/${encodeURIComponent(id)}?${params}`, {
+      credentials: "include",
+      headers: await getHeaders()
+    });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    if (!data?.mapping || !Object.keys(data.mapping).length) throw new Error("Conversation message mapping missing");
+    return data;
+  }
+
+  function getOrderedMessages(data) {
+    const mapping = data.mapping || {};
+    let nodes = [];
+    if (data.current_node && mapping[data.current_node]) {
+      let cursor = data.current_node;
+      const visited = new Set();
+      while (cursor && mapping[cursor] && !visited.has(cursor)) {
+        visited.add(cursor);
+        nodes.push(mapping[cursor]);
+        cursor = mapping[cursor]?.parent;
+      }
+      nodes.reverse();
+    } else {
+      nodes = Object.values(mapping).sort((a, b) => toMilliseconds(a.message?.create_time) - toMilliseconds(b.message?.create_time));
+    }
+    return nodes.map((node) => node?.message).filter((message) =>
+      message && ["user", "assistant", "system", "tool"].includes(message.author?.role)
+    );
+  }
+
+  function messageText(message) {
+    const content = message?.content || {};
+    const parts = Array.isArray(content.parts) ? content.parts : [];
+    let result = parts.map((part) => {
+      if (typeof part === "string") return part;
+      if (part?.asset_pointer || part?.file_id || part?.image_url) {
+        return "[Attachment: " + String(part.name || part.file_name || part.asset_pointer || part.file_id || "image") + "]";
+      }
+      if (part?.text) return String(part.text);
+      return part && typeof part === "object" ? "[Non-text content: " + (part.content_type || content.content_type || "unknown") + "]" : "";
+    }).filter(Boolean).join("\n");
+    if (!result && typeof content.text === "string") result = content.text;
+    if (!result) result = "[Non-text or empty message: " + String(content.content_type || "unknown") + "]";
+    return result;
+  }
+
+  function makePreview(data) {
+    const messages = getOrderedMessages(data);
+    const samples = messages.filter((m) => ["user", "assistant"].includes(m.author?.role))
+      .map((m) => messageText(m).replace(/\s+/g, " ").trim())
+      .filter((value) => value && !value.startsWith("[Non-text"));
+    if (!samples.length) return t("previewUnavailable");
+    const first = samples[0].slice(0, 150);
+    const last = samples.length > 1 ? samples[samples.length - 1].slice(0, 170) : "";
+    return first + (last ? " · " + last : "");
+  }
+
+  async function exportFullWord() {
+    if (state.exportingWord || state.deleting || state.scanning || state.moving) return;
+    const items = state.conversations.filter((item) => state.selected.has(item.id));
+    if (!items.length) return;
+    if (!globalThis.ChatCleanerDocx) {
+      setStatus(t("exportWordError", { error: "DOCX module unavailable" }), true);
+      return;
+    }
+    state.exportingWord = true;
+    ui.exportWord.disabled = true;
+    const chats = [];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        setStatus(t("exportWordProgress", { current: formatNumber(i + 1), total: formatNumber(items.length) }));
+        const data = await getFullConversation(item.id);
+        const messages = getOrderedMessages(data).map((message) => ({
+          role: String(message.author?.role || "unknown"),
+          date: message.create_time ? new Date(toMilliseconds(message.create_time)).toISOString() : "",
+          text: messageText(message)
+        }));
+        if (!messages.length) throw new Error("No messages: " + item.title);
+        chats.push({
+          id: item.id, title: item.title,
+          createdAt: item.createMs ? new Date(item.createMs).toISOString() : "",
+          updatedAt: item.updateMs ? new Date(item.updateMs).toISOString() : "",
+          messages
+        });
+        if (i < items.length - 1) await wait(250);
+      }
+      const blob = globalThis.ChatCleanerDocx.create(chats);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `chat-cleaner-full-conversations-${isoDate()}.docx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 20000);
+      setStatus(t("exportWordSuccess", { count: formatNumber(chats.length) }));
+    } catch (error) {
+      setStatus(t("exportWordError", { error: error?.message || "Unknown" }), true);
+    } finally {
+      state.exportingWord = false;
+      ui.exportWord.disabled = !state.selected.size || state.deleting;
+    }
   }
 
   function exportCatalog() {
@@ -1216,7 +1391,8 @@
 
   function openDeleteConfirmation() {
     if (!state.selected.size || state.deleting) return;
-    const selectedItems = state.conversations.filter((conversation) => state.selected.has(conversation.id));
+    const selectedItems = state.conversations.filter((conversation) => state.selected.has(conversation.id) && !isProtected(conversation));
+    if (!selectedItems.length) return;
     const modal = document.createElement("div");
     modal.className = "modal-backdrop";
 
@@ -1225,7 +1401,7 @@
     const title = document.createElement("h2");
     title.textContent = t("deleteTitle", { count: formatNumber(selectedItems.length) });
     const warning = document.createElement("p");
-    warning.textContent = t("deleteWarning");
+    warning.textContent = t("deleteWarning") + " " + t("reviewBeforeDelete");
     const preview = document.createElement("ol");
     preview.className = "preview";
     selectedItems.slice(0, 20).forEach((conversation) => {
@@ -1291,6 +1467,7 @@
 
     for (let index = 0; index < items.length; index += 1) {
       const conversation = items[index];
+      if (isProtected(conversation)) continue;
       progressText.textContent = t("deletingProgress", { current: formatNumber(index + 1), total: formatNumber(items.length), title: conversation.title });
       progressBar.style.width = `${Math.round((index / items.length) * 100)}%`;
       try {
@@ -2337,6 +2514,7 @@
       ui.clearSelection.disabled = true;
       ui.exportCatalog.disabled = true;
       ui.exportSelection.disabled = true;
+      ui.exportWord.disabled = true;
       ui.importSelection.disabled = true;
       ui.deleteButton.disabled = true;
     } else {
