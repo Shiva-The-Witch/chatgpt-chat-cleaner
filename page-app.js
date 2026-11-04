@@ -974,6 +974,8 @@
     return {
       ...previous,
       ...next,
+      updateMs: Math.max(previous.updateMs || 0, next.updateMs || 0),
+      timelineUpdateMs: Math.max(previous.timelineUpdateMs || 0, next.timelineUpdateMs || 0),
       snippet: next.snippet || previous.snippet || "",
       gizmoId: preferNextProject ? next.gizmoId : (previous.gizmoId || next.gizmoId || ""),
       nativeProjectId: preferNextProject ? next.nativeProjectId : (previous.nativeProjectId || next.nativeProjectId || "")
@@ -1021,7 +1023,9 @@
 
   function normalizeConversation(item) {
     const createMs = toMilliseconds(item.create_time || item.created_at);
-    const updateMs = toMilliseconds(item.update_time || item.updated_at || item.create_time);
+    const rawUpdate = item.update_time ?? item.updated_at;
+    const timelineUpdateMs = rawUpdate == null || rawUpdate === "" ? 0 : toMilliseconds(rawUpdate);
+    const updateMs = timelineUpdateMs || createMs;
     const gizmoId = String(item.gizmo_id || item.gizmoId || item.__nativeProjectId || "");
     return {
       id: String(item.id),
@@ -1029,6 +1033,7 @@
       snippet: String(item.snippet || item.__snippet || ""),
       createMs,
       updateMs,
+      timelineUpdateMs,
       isArchived: Boolean(item.is_archived),
       workspaceId: item.workspace_id || null,
       gizmoId,
@@ -1044,7 +1049,8 @@
   }
 
   function isOldEnoughForTimeline(conversation, now = Date.now()) {
-    const updated = conversation.updateMs;
+    // Missing activity timestamps must never be interpreted as old conversations.
+    const updated = conversation.timelineUpdateMs;
     const cutoff = now - state.timelineDays * 24 * 60 * 60 * 1000;
     return Number.isFinite(updated) && updated > 0 && updated <= now && updated < cutoff;
   }
@@ -1491,12 +1497,12 @@
           : [];
       if (!ids.length) throw new Error(t("missingDeleteIds"));
 
-      const available = new Set(state.conversations.map((conversation) => conversation.id));
+      const available = new Map(state.conversations.map((conversation) => [conversation.id, conversation]));
       let imported = 0;
       let skipped = 0;
       ids.forEach((rawId) => {
         const id = String(rawId);
-        if (!available.has(id) || isProtected(state.conversations.find((conversation) => conversation.id === id))) {
+        if (!available.has(id) || isProtected(available.get(id))) {
           skipped += 1;
           return;
         }
