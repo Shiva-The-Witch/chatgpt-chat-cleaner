@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.4 - 2026-11-04 (development branch)
+
+### Added
+- Timeline Cleaner with 30 days as the default inactivity threshold, configurable to 7, 60, 90, 180, or 365 days.
+- One-click selection of conversations by last confirmed update time, with an on-screen candidate count.
+- A focused view of timeline matches; selection replaces older selections so unrelated chats are not accidentally included.
+- Persian and English text for the new timeline controls.
+
+### Safety
+- Protected conversations and the current conversation are excluded from timeline selection and deletion.
+- Records missing a valid activity timestamp are never selected merely because their creation date is old.
+- Where the same conversation is returned by multiple sources, the newest update timestamp is retained.
+- A second protection check runs at confirmation/deletion time.
+- No timeline action deletes conversations automatically: existing review and typed confirmation remain required.
+- Imported selections skip protected chats.
+
 ## 1.4.2 - 2026-09-12
 
 ### Changed
