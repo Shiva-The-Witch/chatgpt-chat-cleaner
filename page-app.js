@@ -34,6 +34,21 @@
       archivedOnly: "Archived only",
       olderThanDate: "Older than date",
       olderThanTitle: "Show conversations older than this date",
+      timelineTitle: "Timeline Cleaner",
+      timelineDescription: "Select conversations by their LAST activity, not creation date. Protected chats are excluded.",
+      timelineLastActivity: "Last activity older than",
+      timeline7Days: "7 days",
+      timeline30Days: "30 days",
+      timeline60Days: "60 days",
+      timeline90Days: "90 days",
+      timeline180Days: "180 days",
+      timeline365Days: "1 year",
+      timelineCounts: "{count} eligible · {protected} protected excluded",
+      timelineSelect: "Select for deletion review",
+      timelineShowAll: "Show all chats",
+      timelineSelected: "{count} older chats selected. Nothing has been deleted; review the list and confirm separately.",
+      timelineEmpty: "No eligible conversations for this period.",
+      timelineDeleteNote: "These dates are from the last scan. Review before deleting.",
       contentType: "Content type",
       all: "All",
       articlesOnly: "Articles only",
@@ -177,6 +192,21 @@
       archivedOnly: "فقط آرشیوی‌ها",
       olderThanDate: "قدیمی‌تر از تاریخ",
       olderThanTitle: "فقط چت‌های قدیمی‌تر از این تاریخ",
+      timelineTitle: "پاکسازی زمانی",
+      timelineDescription: "بر اساس آخرین فعالیت گفتگو، نه تاریخ ساخت؛ موارد محافظت‌شده کنار گذاشته می‌شوند.",
+      timelineLastActivity: "آخرین فعالیت قدیمی‌تر از",
+      timeline7Days: "۷ روز",
+      timeline30Days: "۳۰ روز",
+      timeline60Days: "۶۰ روز",
+      timeline90Days: "۹۰ روز",
+      timeline180Days: "۱۸۰ روز",
+      timeline365Days: "۱ سال",
+      timelineCounts: "{count} نامزد بررسی · {protected} محافظت‌شده کنار گذاشته شد",
+      timelineSelect: "انتخاب برای بررسی حذف",
+      timelineShowAll: "نمایش همه گفتگوها",
+      timelineSelected: "{count} گفتگوی قدیمی انتخاب شد. هنوز چیزی حذف نشده؛ فهرست را بررسی و حذف را جداگانه تأیید کن.",
+      timelineEmpty: "گفتگوی واجد شرایطی در این بازه پیدا نشد.",
+      timelineDeleteNote: "تاریخ‌ها بر اساس آخرین اسکن هستند؛ قبل از حذف بررسی کن.",
       contentType: "نوع محتوا",
       all: "همه",
       articlesOnly: "فقط مقاله‌ها",
@@ -304,6 +334,7 @@
     nativeProjectByConversation: new Map(),
     selected: new Set(),
     exportingWord: false,
+    timelineDays: 30,
     authHeaders: null,
     scanning: false,
     deleting: false,
@@ -315,6 +346,7 @@
       query: "",
       scope: "all",
       olderThan: "",
+      timelineOnly: false,
       article: "all",
       project: "all"
     }
@@ -427,6 +459,16 @@
         display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
         gap:10px; padding:0 18px 12px;
       }
+      .timeline-bar {
+        display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+        padding:11px 18px; border-top:1px solid var(--border); background:var(--surface);
+      }
+      .timeline-intro { min-width:220px; flex:1 1 250px; display:grid; gap:3px; }
+      .timeline-intro strong { color:var(--text); font-size:12px; }
+      .timeline-intro span, .timeline-count { color:var(--muted); font-size:11px; line-height:1.5; }
+      .timeline-age-label { display:flex; align-items:center; gap:8px; color:var(--text); font-size:11px; }
+      .timeline-age { width:auto; min-width:115px; min-height:36px; }
+      .timeline-select, .timeline-show-all { min-height:36px; }
       .action-group { display:flex; flex-wrap:wrap; gap:7px; }
       .action-group.secondary button { color:var(--muted); }
       .content { min-height:0; display:grid; grid-template-rows:auto 1fr; background:var(--bg); }
@@ -497,6 +539,10 @@
         .header { padding:12px; }
         .toolbar { grid-template-columns:1fr; padding:12px; }
         .toolbar .search { grid-column:auto; }
+        .timeline-bar { padding:12px; align-items:stretch; }
+        .timeline-intro { flex-basis:100%; }
+        .timeline-age-label { flex:1 1 auto; justify-content:space-between; }
+        .timeline-count { flex-basis:100%; }
         .actions { padding:0 12px 12px; align-items:stretch; }
         .action-group { width:100%; }
         .action-group button { flex:1 1 auto; }
@@ -545,6 +591,26 @@
               <option value="all">All projects</option>
               <option value="none">No project</option>
             </select>
+          </div>
+          <div class="timeline-bar" role="group" data-i18n-aria-label="timelineTitle" aria-label="Timeline Cleaner">
+            <div class="timeline-intro">
+              <strong data-i18n="timelineTitle">Timeline Cleaner</strong>
+              <span data-i18n="timelineDescription">Select conversations by their LAST activity, not creation date. Protected chats are excluded.</span>
+            </div>
+            <label class="timeline-age-label">
+              <span data-i18n="timelineLastActivity">Last activity older than</span>
+              <select class="timeline-age" data-i18n-aria-label="timelineLastActivity" aria-label="Last activity older than">
+                <option value="7" data-i18n="timeline7Days">7 days</option>
+                <option value="30" selected data-i18n="timeline30Days">30 days</option>
+                <option value="60" data-i18n="timeline60Days">60 days</option>
+                <option value="90" data-i18n="timeline90Days">90 days</option>
+                <option value="180" data-i18n="timeline180Days">180 days</option>
+                <option value="365" data-i18n="timeline365Days">1 year</option>
+              </select>
+            </label>
+            <span class="timeline-count" aria-live="polite"></span>
+            <button class="timeline-select primary" type="button" disabled data-i18n="timelineSelect">Select for deletion review</button>
+            <button class="timeline-show-all" type="button" disabled data-i18n="timelineShowAll">Show all chats</button>
           </div>
           <div class="actions">
             <div class="action-group">
@@ -598,6 +664,10 @@
     search: shadow.querySelector(".search"),
     scope: shadow.querySelector(".scope"),
     olderThan: shadow.querySelector(".older-than"),
+    timelineAge: shadow.querySelector(".timeline-age"),
+    timelineCount: shadow.querySelector(".timeline-count"),
+    timelineSelect: shadow.querySelector(".timeline-select"),
+    timelineShowAll: shadow.querySelector(".timeline-show-all"),
     articleFilter: shadow.querySelector(".article-filter"),
     projectFilter: shadow.querySelector(".project-filter"),
     manageProjects: shadow.querySelector(".manage-projects"),
@@ -749,6 +819,20 @@
       state.filter.olderThan = ui.olderThan.value;
       render();
     });
+    ui.timelineAge.addEventListener("change", () => {
+      const days = Number(ui.timelineAge.value);
+      if (![7, 30, 60, 90, 180, 365].includes(days)) return;
+      state.timelineDays = days;
+      state.filter.timelineOnly = false;
+      state.selected.clear();
+      setStatus("");
+      render();
+    });
+    ui.timelineSelect.addEventListener("click", selectTimelineCandidates);
+    ui.timelineShowAll.addEventListener("click", () => {
+      state.filter.timelineOnly = false;
+      render();
+    });
     ui.articleFilter.addEventListener("change", () => {
       state.filter.article = ui.articleFilter.value;
       render();
@@ -870,7 +954,7 @@
           .map((conversation) => [conversation.id, conversation.nativeProjectId])
       );
       syncOrganizerWithNativeMembership();
-      state.selected = new Set([...state.selected].filter((id) => byId.has(id)));
+      state.selected = new Set([...state.selected].filter((id) => byId.has(id) && !isProtected(byId.get(id))));
       setStatus(t("conversationsFound", { count: formatNumber(state.conversations.length) }));
       render();
     } catch (error) {
@@ -959,10 +1043,40 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  function isOldEnoughForTimeline(conversation, now = Date.now()) {
+    const updated = conversation.updateMs;
+    const cutoff = now - state.timelineDays * 24 * 60 * 60 * 1000;
+    return Number.isFinite(updated) && updated > 0 && updated <= now && updated < cutoff;
+  }
+
+  function timelineCandidates(now = Date.now()) {
+    const eligible = [];
+    let protectedCount = 0;
+    for (const conversation of state.conversations) {
+      if (!isOldEnoughForTimeline(conversation, now)) continue;
+      if (isProtected(conversation)) protectedCount += 1;
+      else eligible.push(conversation);
+    }
+    return { eligible, protectedCount };
+  }
+
+  function selectTimelineCandidates() {
+    if (state.scanning || state.deleting || state.moving) return;
+    const { eligible } = timelineCandidates();
+    state.selected = new Set(eligible.map((conversation) => conversation.id));
+    state.filter.timelineOnly = true;
+    render();
+    setStatus(eligible.length
+      ? t("timelineSelected", { count: formatNumber(eligible.length) })
+      : t("timelineEmpty"));
+  }
+
   function filteredConversations() {
     const query = normalizeText(state.filter.query);
     const cutoff = state.filter.olderThan ? new Date(`${state.filter.olderThan}T00:00:00`).getTime() : null;
+    const timelineNow = Date.now();
     return state.conversations.filter((conversation) => {
+      if (state.filter.timelineOnly && (!isOldEnoughForTimeline(conversation, timelineNow) || isProtected(conversation))) return false;
       if (state.filter.scope === "active" && conversation.isArchived) return false;
       if (state.filter.scope === "archived" && !conversation.isArchived) return false;
       const meta = getConversationMeta(conversation.id);
@@ -989,8 +1103,16 @@
     ui.visible.textContent = formatNumber(visible.length);
     ui.selectedTop.textContent = formatNumber(state.selected.size);
     ui.selectedBottom.textContent = formatNumber(state.selected.size);
+    const timeline = timelineCandidates();
+    ui.timelineCount.textContent = t("timelineCounts", {
+      count: formatNumber(timeline.eligible.length),
+      protected: formatNumber(timeline.protectedCount)
+    });
+    ui.timelineAge.value = String(state.timelineDays);
 
     const hasData = state.conversations.length > 0;
+    ui.timelineSelect.disabled = !timeline.eligible.length || state.scanning || state.deleting || state.moving;
+    ui.timelineShowAll.disabled = !state.filter.timelineOnly || state.scanning || state.deleting || state.moving;
     ui.smartSuggestions.disabled = !hasData || !nativeProjects().length || state.scanning || state.deleting;
     ui.selectFiltered.disabled = !visible.length || state.scanning || state.deleting;
     ui.selectGeneric.disabled = !hasData || state.scanning || state.deleting;
@@ -1198,6 +1320,17 @@
     return conversation.id === state.currentConversationId || safeProtected.has(conversation.id);
   }
 
+  function isProtectedForDeletion(conversation) {
+    if (isProtected(conversation)) return true;
+    try {
+      const ids = JSON.parse(localStorage.getItem(PROTECTED_KEY) || "[]");
+      // Fail closed if protections cannot be read reliably.
+      return !Array.isArray(ids) || ids.includes(conversation.id);
+    } catch {
+      return true;
+    }
+  }
+
   async function getFullConversation(id) {
     const params = new URLSearchParams({ include_has_versions: "true" });
     const response = await fetch(`/backend-api/conversation/${encodeURIComponent(id)}?${params}`, {
@@ -1363,7 +1496,7 @@
       let skipped = 0;
       ids.forEach((rawId) => {
         const id = String(rawId);
-        if (id === state.currentConversationId || !available.has(id)) {
+        if (!available.has(id) || isProtected(state.conversations.find((conversation) => conversation.id === id))) {
           skipped += 1;
           return;
         }
@@ -1391,7 +1524,11 @@
 
   function openDeleteConfirmation() {
     if (!state.selected.size || state.deleting) return;
-    const selectedItems = state.conversations.filter((conversation) => state.selected.has(conversation.id) && !isProtected(conversation));
+    const selectedItems = state.conversations.filter((conversation) =>
+      state.selected.has(conversation.id) &&
+      !isProtectedForDeletion(conversation) &&
+      (!state.filter.timelineOnly || isOldEnoughForTimeline(conversation))
+    );
     if (!selectedItems.length) return;
     const modal = document.createElement("div");
     modal.className = "modal-backdrop";
@@ -1401,7 +1538,8 @@
     const title = document.createElement("h2");
     title.textContent = t("deleteTitle", { count: formatNumber(selectedItems.length) });
     const warning = document.createElement("p");
-    warning.textContent = t("deleteWarning") + " " + t("reviewBeforeDelete");
+    warning.textContent = t("deleteWarning") + " " + t("reviewBeforeDelete") +
+      (state.filter.timelineOnly ? " " + t("timelineDeleteNote") : "");
     const preview = document.createElement("ol");
     preview.className = "preview";
     selectedItems.slice(0, 20).forEach((conversation) => {
@@ -1467,7 +1605,8 @@
 
     for (let index = 0; index < items.length; index += 1) {
       const conversation = items[index];
-      if (isProtected(conversation)) continue;
+      if (isProtectedForDeletion(conversation)) continue;
+      if (state.filter.timelineOnly && !isOldEnoughForTimeline(conversation)) continue;
       progressText.textContent = t("deletingProgress", { current: formatNumber(index + 1), total: formatNumber(items.length), title: conversation.title });
       progressBar.style.width = `${Math.round((index / items.length) * 100)}%`;
       try {
@@ -2498,6 +2637,9 @@
 
   function setControlsBusy(busy) {
     ui.scan.disabled = busy;
+    ui.timelineAge.disabled = busy;
+    ui.timelineSelect.disabled = busy;
+    ui.timelineShowAll.disabled = busy;
     ui.search.disabled = busy;
     ui.scope.disabled = busy;
     ui.olderThan.disabled = busy;
