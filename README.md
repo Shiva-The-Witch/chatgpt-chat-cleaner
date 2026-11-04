@@ -5,7 +5,7 @@ A source-available browser extension for organizing, filtering, reviewing, movin
 **Built and maintained by [Shiva Dehghan](https://github.com/Shiva-The-Witch).**
 
 > **Status:** Public beta  
-> **Current version:** 1.4.2  
+> **Current version:** 1.4.4 (development branch)  
 > **Platform:** Chromium-based browsers / Manifest V3
 
 ## Features
@@ -26,9 +26,22 @@ A source-available browser extension for organizing, filtering, reviewing, movin
 - Export the full catalog or selected conversation IDs as JSON
 - Import a previous JSON selection
 - Selectively delete conversations with an explicit confirmation step
+- Timeline Cleaner: review conversations whose last verified activity is more than 30 days old (configurable 7–365 days), excluding protected conversations
 - Light and dark themes with a ChatGPT-inspired neutral interface
 - Bilingual interface: English and Persian with RTL/LTR switching
 - No external runtime dependencies or build step
+
+## Timeline Cleaner (development)
+
+1. Scan conversations while signed in to ChatGPT.
+2. In **Timeline Cleaner**, leave the default **30 days** or choose a different threshold.
+3. Check the candidate count, then click **Select for deletion review**. This replaces any previous selection and shows only matching, non-protected conversations.
+4. Review the titles and optional previews; export any important conversations before deleting.
+5. Click **Delete selected** only when ready and type the existing confirmation phrase. **Nothing is deleted by the timeline button alone.**
+
+Selection is based on the **last verified update timestamp**, not when the chat was created. Conversations with missing/invalid update timestamps are excluded. Protected chats and the current chat are excluded; safeguards are rechecked at deletion time. **Show all chats** exits the timeline-only view without deleting anything.
+
+Because ChatGPT web endpoints are unofficial, test this development version on a small, nonessential selection before relying on bulk deletion.
 
 ## Native ChatGPT Projects
 
